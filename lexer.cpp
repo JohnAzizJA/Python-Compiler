@@ -24,7 +24,7 @@ class Lexer {
         unordered_set<string> keywords = {
             "import", "from", "as",
             "if", "elif", "else", 
-            "for", "while", "break", "continue", 
+            "for", "while", "break", "continue", "pass",
             "and", "or", "not", "in", "is",
             "def", "class",
             "return", "yield",
@@ -37,7 +37,7 @@ class Lexer {
         }
 
         void tokenizeLine(const string& line, int lineNumber){
-            
+
         }
 };
 
