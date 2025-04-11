@@ -5,6 +5,11 @@ import math
 def add(x, y):
     result = x + y
     return result
+"""
+test
+block
+comment
+"""
 
 z = """This is a multiline string literal"""
 
