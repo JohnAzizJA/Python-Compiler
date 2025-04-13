@@ -193,71 +193,68 @@ class Lexer {
                 // Match keywords and identifiers
                 if (regex_search(subCode, match, keywordRegex) && match.position() == 0) {
                     string word = match.str();
+        
                     if (keywords.find(word) != keywords.end()) {
+                        // Add keyword to tokens
                         tokens.push_back({KEYWORD, word, lineNumber});
                     } else {
+                        // Add identifier to tokens
                         tokens.push_back({IDENTIFIER, word, lineNumber});
-                
+        
                         // Check if it's a variable assignment: identifier = something
                         size_t equalPos = code.find('=', i + word.length());
                         if (equalPos != string::npos && code[equalPos - 1] != '=' && code[equalPos + 1] != '=') {
-                            if (keywords.find(word) != keywords.end()) {
-                                tokens.push_back({KEYWORD, word, lineNumber});
+                            string rhs = code.substr(equalPos + 1);
+                            rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), ""); // Trim spaces
+        
+                            string type = "unknown";
+        
+                            // Infer type from RHS
+                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
+                                type = "int"; // Hexadecimal integer
+                            } else if (regex_match(rhs, regex("^[+-]?\\d+$"))) {
+                                type = "int"; // Decimal integer
+                            } else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
+                                type = "float"; // Float with optional exponent
+                            } else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) {
+                                type = "string";
+                            } else if (rhs == "True" || rhs == "False") {
+                                type = "bool";
+                            } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
+                                // Handle simple arithmetic expressions
+                                type = "int"; // Assume the result of arithmetic operations is an integer
                             } else {
-                                tokens.push_back({IDENTIFIER, word, lineNumber});
-                            
-                                // Check if it's a variable assignment: identifier = something
-                                size_t equalPos = code.find('=', i + word.length());
-                                if (equalPos != string::npos && code[equalPos - 1] != '=' && code[equalPos + 1] != '=') {
-                                    string rhs = code.substr(equalPos + 1);
-                                    rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), ""); // Trim spaces
-                                
-                                    string type = "unknown";
-                                
-                                    // Check if the RHS is a simple number
-                                    if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
-                                        type = "int"; // Hexadecimal integer
-                                    } else if (regex_match(rhs, regex("^[+-]?\\d+$"))) {
-                                        type = "int"; // Decimal integer
-                                    } else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
-                                        type = "float"; // Float with optional exponent
-                                    } else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) {
-                                        type = "string";
-                                    } else if (rhs == "True" || rhs == "False") {
-                                        type = "bool";
-                                    } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
-                                        // Handle simple arithmetic expressions
-                                        type = "int"; // Assume the result of arithmetic operations is an integer
-                                    } else {
-                                        // Handle expressions involving variables
-                                        vector<string> tokens;
-                                        stringstream ss(rhs);
-                                        string token;
-                                        while (ss >> token) {
-                                            tokens.push_back(token);
-                                        }
-                                
-                                        // Infer type based on the first variable or literal in the expression
-                                        for (const string& tok : tokens) {
-                                            if (regex_match(tok, keywordRegex)) {
-                                                type = getVariableType(tok, CurrentScope);
-                                                if (type != "unknown") break;
-                                            } else if (regex_match(tok, regex("^[+-]?\\d+$"))) {
-                                                type = "int";
-                                                break;
-                                            } else if (regex_match(tok, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
-                                                type = "float";
-                                                break;
-                                            }
-                                        }
+                                // Handle expressions involving variables
+                                vector<string> tokens;
+                                stringstream ss(rhs);
+                                string token;
+                                while (ss >> token) {
+                                    tokens.push_back(token);
+                                }
+        
+                                // Infer type based on the first variable or literal in the expression
+                                for (const string& tok : tokens) {
+                                    if (regex_match(tok, keywordRegex)) {
+                                        type = getVariableType(tok, CurrentScope);
+                                        if (type != "unknown") break;
+                                    } else if (regex_match(tok, regex("^[+-]?\\d+$"))) {
+                                        type = "int";
+                                        break;
+                                    } else if (regex_match(tok, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
+                                        type = "float";
+                                        break;
                                     }
-                                
-                                    addToSymbolTable(word, type, CurrentScope);
                                 }
                             }
-                            
+        
+                            // Add to symbol table
+                            addToSymbolTable(word, type, CurrentScope);
+                        } else {
+                            // Add identifier to symbol table with unknown type if not an assignment
+                            addToSymbolTable(word, "unknown", CurrentScope);
                         }
                     }
+        
                     i += match.length();
                     continue;
                 }

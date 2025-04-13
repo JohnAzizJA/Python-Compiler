@@ -12,6 +12,7 @@ ay 7aga ay 7a$$$$$ga ay 7aga ay 7aga ay 7aga'''
 
 
 def main():
+    x,y = 5,6
     print("Welcome to the Word Finder!")
     
     text = input("Enter the string to search in: ")
