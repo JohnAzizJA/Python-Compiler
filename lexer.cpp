@@ -45,6 +45,10 @@ class Lexer {
         string CurrentScope = "global";
         bool inBlockComment = false;
 
+        unordered_set<string> builtInFunctions = {
+            "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
+        };
+
         unordered_set<string> keywords = {
             "import", "from", "as",
             "if", "elif", "else", 
@@ -157,8 +161,15 @@ class Lexer {
             smatch match;
 
             // Check for function definition
-            if (regex_search(code, match, functionDefRegex)) {
-                CurrentScope = match[1]; // Set the current scope to the function name
+           if (regex_search(code, match, functionDefRegex)) {
+                string functionName = match[1];
+                tokens.push_back({IDENTIFIER, functionName, lineNumber});
+
+                // Add the function to the symbol table with type "function"
+                addToSymbolTable(functionName, "function", CurrentScope);
+
+                CurrentScope = functionName; // Set the current scope to the function name
+                return; // No need to tokenize further for function definitions
             }
 
             for (size_t i = 0; i < code.size();) {
@@ -198,6 +209,12 @@ class Lexer {
                         // Add keyword to tokens
                         tokens.push_back({KEYWORD, word, lineNumber});
                     } else {
+                        // Check if it's a built-in function
+                        if (builtInFunctions.find(word) != builtInFunctions.end()) {
+                            // Skip adding built-in functions to the symbol table
+                            i += match.length();
+                            continue;
+                        }
                         // Add identifier to tokens
                         tokens.push_back({IDENTIFIER, word, lineNumber});
         
@@ -206,9 +223,9 @@ class Lexer {
                         if (equalPos != string::npos && code[equalPos - 1] != '=' && code[equalPos + 1] != '=') {
                             string rhs = code.substr(equalPos + 1);
                             rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), ""); // Trim spaces
-        
+                        
                             string type = "unknown";
-        
+                        
                             // Infer type from RHS
                             if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
                                 type = "int"; // Hexadecimal integer
@@ -221,8 +238,7 @@ class Lexer {
                             } else if (rhs == "True" || rhs == "False") {
                                 type = "bool";
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
-                                // Handle simple arithmetic expressions
-                                type = "int"; // Assume the result of arithmetic operations is an integer
+                                type = "int"; // Arithmetic expressions result in int
                             } else {
                                 // Handle expressions involving variables
                                 vector<string> tokens;
@@ -231,7 +247,7 @@ class Lexer {
                                 while (ss >> token) {
                                     tokens.push_back(token);
                                 }
-        
+                        
                                 // Infer type based on the first variable or literal in the expression
                                 for (const string& tok : tokens) {
                                     if (regex_match(tok, keywordRegex)) {
@@ -246,12 +262,9 @@ class Lexer {
                                     }
                                 }
                             }
-        
+                        
                             // Add to symbol table
                             addToSymbolTable(word, type, CurrentScope);
-                        } else {
-                            // Add identifier to symbol table with unknown type if not an assignment
-                            addToSymbolTable(word, "unknown", CurrentScope);
                         }
                     }
         
