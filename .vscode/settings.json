@@ -58,6 +58,10 @@
         "text_encoding": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
+<<<<<<< HEAD
         "iomanip": "cpp"
+=======
+        "xstring": "cpp"
+>>>>>>> 0c45eaeafcbdffd4bca02d7262ef7068c795ccd6
     }
 }

@@ -6,14 +6,15 @@
 #include <unordered_map>
 #include <regex>
 #include <iomanip>
+#include <algorithm>
 
 using namespace std;
 
 enum TokenType {
-    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER
+    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER, ERROR
 };
 
-struct Token{
+struct Token {
     TokenType type;
     string value;
     int line;
@@ -33,75 +34,117 @@ string tokenTypeToString(TokenType type) {
         case OPERATOR: return "OPERATOR";
         case LITERAL: return "LITERAL";
         case DELIMITER: return "DELIMITER";
+        case ERROR: return "ERROR";
         default: return "UNKNOWN";
     }
 }
 
-
 class Lexer {
-    private:
-        vector<Identifier> symbol_table;
-        vector<Token> tokens;
-        string CurrentScope = "global";
-        bool inBlockComment = false;
+private:
+    vector<Identifier> symbol_table;
+    vector<Token> tokens;
+    string CurrentScope = "global";
+    bool inBlockComment = false;
+    int previousIndentation = 0;
+    int expectedIndentation = 0;
+    bool expectingIndentedBlock = false;
 
-        unordered_set<string> builtInFunctions = {
-            "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
-        };
+    unordered_set<string> builtInFunctions = {
+        "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
+    };
 
-        unordered_set<string> keywords = {
-            "import", "from", "as",
-            "if", "elif", "else", 
-            "for", "while", "break", "continue", "pass",
-            "and", "or", "not", "in", "is",
-            "def", "class",
-            "return", "yield",
-            "True", "False", "None"
-        };
+    unordered_set<string> keywords = {
+        "import", "from", "as",
+        "if", "elif", "else",
+        "for", "while", "break", "continue", "pass",
+        "and", "or", "not", "in", "is",
+        "def", "class",
+        "return", "yield",
+        "True", "False", "None"
+    };
 
-        void addToSymbolTable(const string& name, const string& type, const string& scope) {
-            for (const auto& id : symbol_table) {
-                if (id.name == name && id.Scope == scope) return; // avoid duplicates in same scope
+    void addToSymbolTable(const string& name, const string& type, const string& scope) {
+        for (const auto& id : symbol_table) {
+            if (id.name == name && id.Scope == scope) return;
+        }
+        int newID = symbol_table.size() + 1;
+        symbol_table.push_back({newID, name, type, scope});
+    }
+
+    string getVariableType(const string& name, const string& scope) {
+        for (const auto& id : symbol_table) {
+            if (id.name == name && id.Scope == scope) {
+                return id.type;
             }
-            int newID = symbol_table.size() + 1;
-            symbol_table.push_back({newID, name, type, scope});
+        }
+        return "unknown";
+    }
+
+    bool isUnterminatedString(const string& str) {
+        int singleQuotes = count(str.begin(), str.end(), '\'');
+        int doubleQuotes = count(str.begin(), str.end(), '"');
+        return (singleQuotes % 2 != 0) || (doubleQuotes % 2 != 0);
+    }
+
+    int getIndentationLevel(const string& line) {
+        int count = 0;
+        for (char ch : line) {
+            if (ch == ' ') count++;
+            else if (ch == '\t') count += 4; // tab = 4 spaces
+            else break;
+        }
+        return count;
+    }
+
+public:
+    void readFile(const string& filename) {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cerr << "Error: Could not open file " << filename << endl;
+            return;
         }
 
-        string getVariableType(const string& name, const string& scope) {
-            for (const auto& id : symbol_table) {
-                if (id.name == name && id.Scope == scope) {
-                    return id.type;
+        string line;
+        int lineNumber = 1;
+        while (getline(file, line)) {
+            int indentation = getIndentationLevel(line);
+
+            if (indentation % 4 != 0) {
+                cerr << "Warning: Inconsistent indentation on line " << lineNumber << endl;
+                tokens.push_back({ERROR, "BadIndent", lineNumber});
+            }
+
+            if (expectingIndentedBlock) {
+                if (indentation <= previousIndentation) {
+                    cerr << "Error: Expected indented block after ':' on line " << lineNumber - 1 << endl;
+                    tokens.push_back({ERROR, "MissingIndent", lineNumber});
+                    expectingIndentedBlock = false;
+                } else {
+                    expectedIndentation = indentation;
+                    expectingIndentedBlock = false;
                 }
             }
-            return "unknown"; // Return "unknown" if the variable is not found
-        }
-        
-    
-    public:
-        void readFile(const string& filename) {
-            ifstream file(filename);
-            if (!file.is_open()) {
-                cerr << "Error: Could not open file " << filename << endl;
-                return;
-            }
-        
-            string line;
-            int lineNumber = 1;
-            while (getline(file, line)) {
-                tokenizeLine(line, lineNumber);
-                lineNumber++;
-            }
-        
-            file.close();
-        }
 
-        void tokenizeLine(const string& line, int lineNumber) {
-            string code = line;
-
-            // Reset scope if the line is not indented and we're inside a function
-             if (!line.empty() && !isspace(line[0]) && CurrentScope != "global") {
+            if (indentation == 0 && CurrentScope != "global") {
                 CurrentScope = "global";
+                expectedIndentation = 0;
             }
+
+            previousIndentation = indentation;
+
+            tokenizeLine(line, lineNumber);
+            lineNumber++;
+        }
+
+        file.close();
+    }
+
+    void tokenizeLine(const string& line, int lineNumber) {
+        string code = line;
+
+        if (!line.empty() && !isspace(line[0]) && CurrentScope != "global") {
+            CurrentScope = "global";
+        }
 
             // Handle block comments or multiline string literals
             if (inBlockComment) {
@@ -161,17 +204,13 @@ class Lexer {
             regex tupleRegex("\\(([^\\)]*)\\)");
             smatch match;
 
-            // Check for function definition
-           if (regex_search(code, match, functionDefRegex)) {
-                string functionName = match[1];
-                tokens.push_back({IDENTIFIER, functionName, lineNumber});
-
-                // Add the function to the symbol table with type "function"
-                addToSymbolTable(functionName, "function", CurrentScope);
-
-                CurrentScope = functionName; // Set the current scope to the function name
-                return; // No need to tokenize further for function definitions
-            }
+        if (regex_search(code, match, functionDefRegex)) {
+            string functionName = match[1];
+            tokens.push_back({IDENTIFIER, functionName, lineNumber});
+            addToSymbolTable(functionName, "function", CurrentScope);
+            CurrentScope = functionName;
+            return;
+        }
 
             for (size_t i = 0; i < code.size();) {
                 if (isspace(code[i])) {
@@ -315,20 +354,17 @@ int main() {
     Lexer lexer;
     lexer.readFile("example.py");
 
-    // Token Table Header
     cout << left << setw(8) << "Line"
          << setw(15) << "Type"
          << setw(20) << "Value" << endl;
     cout << string(45, '-') << endl;
 
-    // Token Table Rows
     for (const auto& token : lexer.getTokens()) {
         cout << left << setw(8) << token.line
              << setw(15) << tokenTypeToString(token.type)
              << setw(20) << token.value << endl;
     }
 
-    // Symbol Table Header
     cout << "\n--- Symbol Table ---\n";
     cout << left << setw(6) << "ID"
          << setw(20) << "Name"
@@ -336,12 +372,12 @@ int main() {
          << setw(15) << "Scope" << endl;
     cout << string(56, '-') << endl;
 
-    // Symbol Table Rows
     for (const auto& id : lexer.getsymbols()) {
         cout << left << setw(6) << id.ID
              << setw(20) << id.name
              << setw(15) << id.type
              << setw(15) << id.Scope << endl;
     }
+
     return 0;
 }
