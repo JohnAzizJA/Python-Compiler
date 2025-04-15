@@ -156,7 +156,7 @@ class Lexer {
             regex operatorRegex("(==|!=|<=|>=|[+\\-*/%=<>!&|^~])");
             regex delimiterRegex("[(){}\\[\\],.:;]");
             regex stringLiteralRegex("\".*?\"|'.*?'");
-            regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); // Regex for function definitions
+            regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
 
             smatch match;
 
