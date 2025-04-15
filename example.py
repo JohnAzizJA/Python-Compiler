@@ -27,8 +27,9 @@ def main():
     # value$value = 2
     # $value = 2
     # value5$ = 3
-    
-
+    ll = [1,2,3,4,5,6]
+    tt = (1,2)
+    ss = "string"
     print(value)
     print('the minimum value:\n' + min)
     print(value2)

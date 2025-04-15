@@ -157,7 +157,8 @@ class Lexer {
             regex delimiterRegex("[(){}\\[\\],.:;]");
             regex stringLiteralRegex("\".*?\"|'.*?'");
             regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
-
+            regex listRegex("\\[([^\\]]*)\\]");
+            regex tupleRegex("\\(([^\\)]*)\\)");
             smatch match;
 
             // Check for function definition
@@ -200,6 +201,20 @@ class Lexer {
                     i += match.length();
                     continue;
                 }
+
+                // Match list literals
+                if (regex_search(subCode, match, listRegex) && match.position() == 0) {
+                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    i += match.length();
+                    continue;
+                }
+    
+                // Match tuple literals
+                if (regex_search(subCode, match, tupleRegex) && match.position() == 0) {
+                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    i += match.length();
+                    continue;
+                }
         
                 // Match keywords and identifiers
                 if (regex_search(subCode, match, keywordRegex) && match.position() == 0) {
@@ -239,6 +254,10 @@ class Lexer {
                                 type = "bool";
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
                                 type = "int"; // Arithmetic expressions result in int
+                            } else if (regex_match(rhs, listRegex)) {
+                                type = "list"; // List literal
+                            } else if (regex_match(rhs, tupleRegex)) {
+                                type = "tuple"; // Tuple literal
                             } else {
                                 // Handle expressions involving variables
                                 vector<string> tokens;
