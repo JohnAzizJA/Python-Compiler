@@ -289,7 +289,8 @@ public:
         
                     if (keywords.find(word) != keywords.end()) {
                         tokens.push_back({KEYWORD, word, lineNumber});
-                    } else {
+                    } 
+                    else {
                         if (builtInFunctions.find(word) != builtInFunctions.end()) {
                             i += match.length();
                             continue;
