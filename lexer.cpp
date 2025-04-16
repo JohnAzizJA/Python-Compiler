@@ -109,6 +109,12 @@ public:
         while (getline(file, line)) {
             int indentation = getIndentationLevel(line);
 
+            // Check for invalid indentation globally (outside functions)
+            if (CurrentScope == "global" && indentation > 0) {
+                cerr << "Error: Unexpected indentation in global scope on line " << lineNumber << endl;
+                tokens.push_back({ERROR, "UnexpectedIndent", lineNumber});
+            }
+
             if (indentation % 4 != 0) {
                 cerr << "Warning: Inconsistent indentation on line " << lineNumber << endl;
                 tokens.push_back({ERROR, "BadIndent", lineNumber});

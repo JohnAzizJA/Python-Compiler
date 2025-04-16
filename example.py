@@ -3,6 +3,8 @@ def find_word_in_string(text, word):
     word = word.lower()
     return word in text
 
+int z = 25
+
 numb = 1e
 numb = 1.1.0
 hello = "hi
@@ -12,6 +14,8 @@ hello = "hi
 1words = 15
 
 w e = 12
+
+    hi = "hi"
 
 """
 ay 7aga ay 7a$$$$$ga ay 7aga ay 7aga ay 7aga'''
