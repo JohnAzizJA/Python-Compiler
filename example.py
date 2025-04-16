@@ -3,6 +3,11 @@ def find_word_in_string(text, word):
     word = word.lower()
     return word in text
 
+if
+
+if x
+
+t = 
 
 int z = 25
 

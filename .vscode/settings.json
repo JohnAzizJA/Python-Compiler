@@ -3,6 +3,7 @@
         "xstring": "cpp",
         "regex": "cpp",
         "vector": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "xhash": "cpp"
     }
 }

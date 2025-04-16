@@ -293,6 +293,10 @@ public:
                             if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
                                 cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
                                 tokens.push_back({ERROR, "ExpectedCondition", lineNumber});
+                            } 
+                            else if (subCode.find(':') == string::npos) {
+                                cerr << "Error: Expected ':' after keyword '" << word << "' on line " << lineNumber << endl;
+                                tokens.push_back({ERROR, "ExpectedColon", lineNumber});
                             }
                         }
                         tokens.push_back({KEYWORD, word, lineNumber});
