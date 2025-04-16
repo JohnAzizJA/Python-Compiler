@@ -75,7 +75,18 @@ class Lexer {
             }
             return "unknown"; // Return "unknown" if the variable is not found
         }
-        
+
+         bool isValidIdentifier(const string& identifier) {
+            // An identifier must start with a letter or underscore and can contain letters, digits, or underscores
+            regex validIdentifierRegex("^[a-zA-Z_][a-zA-Z0-9_]*$");
+            return regex_match(identifier, validIdentifierRegex);
+        }
+
+        void handleInvalidIdentifier(const string& identifier, int lineNumber) {
+            if (!isValidIdentifier(identifier)) {
+                cerr << "Warning: Invalid identifier '" << identifier << "' on line " << lineNumber << endl;
+            }
+        }
     
     public:
         void readFile(const string& filename) {
