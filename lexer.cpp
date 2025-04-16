@@ -6,14 +6,15 @@
 #include <unordered_map>
 #include <regex>
 #include <iomanip>
+#include <algorithm>
 
 using namespace std;
 
 enum TokenType {
-    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER
+    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER, ERROR
 };
 
-struct Token{
+struct Token {
     TokenType type;
     string value;
     int line;
@@ -33,46 +34,97 @@ string tokenTypeToString(TokenType type) {
         case OPERATOR: return "OPERATOR";
         case LITERAL: return "LITERAL";
         case DELIMITER: return "DELIMITER";
+        case ERROR: return "ERROR";
         default: return "UNKNOWN";
     }
 }
 
-
 class Lexer {
-    private:
-        vector<Identifier> symbol_table;
-        vector<Token> tokens;
-        string CurrentScope = "global";
-        bool inBlockComment = false;
+private:
+    vector<Identifier> symbol_table;
+    vector<Token> tokens;
+    string CurrentScope = "global";
+    bool inBlockComment = false;
+    int previousIndentation = 0;
+    int expectedIndentation = 0;
+    bool expectingIndentedBlock = false;
 
-        unordered_set<string> builtInFunctions = {
-            "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
-        };
+    unordered_set<string> builtInFunctions = {
+        "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
+    };
 
-        unordered_set<string> keywords = {
-            "import", "from", "as",
-            "if", "elif", "else", 
-            "for", "while", "break", "continue", "pass",
-            "and", "or", "not", "in", "is",
-            "def", "class",
-            "return", "yield",
-            "True", "False", "None"
-        };
+    unordered_set<string> keywords = {
+        "import", "from", "as",
+        "if", "elif", "else",
+        "for", "while", "break", "continue", "pass",
+        "and", "or", "not", "in", "is",
+        "def", "class",
+        "return", "yield",
+        "True", "False", "None"
+    };
 
-        void addToSymbolTable(const string& name, const string& type, const string& scope) {
-            for (const auto& id : symbol_table) {
-                if (id.name == name && id.Scope == scope) return; // avoid duplicates in same scope
+    void addToSymbolTable(const string& name, const string& type, const string& scope) {
+        for (const auto& id : symbol_table) {
+            if (id.name == name && id.Scope == scope) return;
+        }
+        int newID = symbol_table.size() + 1;
+        symbol_table.push_back({newID, name, type, scope});
+    }
+
+    string getVariableType(const string& name, const string& scope) {
+        for (const auto& id : symbol_table) {
+            if (id.name == name && id.Scope == scope) {
+                return id.type;
             }
-            int newID = symbol_table.size() + 1;
-            symbol_table.push_back({newID, name, type, scope});
+        }
+        return "unknown";
+    }
+
+    bool isUnterminatedString(const string& str) {
+        int singleQuotes = count(str.begin(), str.end(), '\'');
+        int doubleQuotes = count(str.begin(), str.end(), '"');
+        return (singleQuotes % 2 != 0) || (doubleQuotes % 2 != 0);
+    }
+
+    int getIndentationLevel(const string& line) {
+        int count = 0;
+        for (char ch : line) {
+            if (ch == ' ') count++;
+            else if (ch == '\t') count += 4; // tab = 4 spaces
+            else break;
+        }
+        return count;
+    }
+
+public:
+    void readFile(const string& filename) {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cerr << "Error: Could not open file " << filename << endl;
+            return;
         }
 
-        string getVariableType(const string& name, const string& scope) {
-            for (const auto& id : symbol_table) {
-                if (id.name == name && id.Scope == scope) {
-                    return id.type;
+        string line;
+        int lineNumber = 1;
+        while (getline(file, line)) {
+            int indentation = getIndentationLevel(line);
+
+            if (indentation % 4 != 0) {
+                cerr << "Warning: Inconsistent indentation on line " << lineNumber << endl;
+                tokens.push_back({ERROR, "BadIndent", lineNumber});
+            }
+
+            if (expectingIndentedBlock) {
+                if (indentation <= previousIndentation) {
+                    cerr << "Error: Expected indented block after ':' on line " << lineNumber - 1 << endl;
+                    tokens.push_back({ERROR, "MissingIndent", lineNumber});
+                    expectingIndentedBlock = false;
+                } else {
+                    expectedIndentation = indentation;
+                    expectingIndentedBlock = false;
                 }
             }
+<<<<<<< HEAD
             return "unknown"; // Return "unknown" if the variable is not found
         }
 
@@ -105,14 +157,29 @@ class Lexer {
         
             file.close();
         }
+=======
+>>>>>>> e2fc90c24990ca1d9497c8fd8cf9eb4380ae5d9c
 
-        void tokenizeLine(const string& line, int lineNumber) {
-            string code = line;
-
-            // Reset scope if the line is not indented and we're inside a function
-             if (!line.empty() && !isspace(line[0]) && CurrentScope != "global") {
+            if (indentation == 0 && CurrentScope != "global") {
                 CurrentScope = "global";
+                expectedIndentation = 0;
             }
+
+            previousIndentation = indentation;
+
+            tokenizeLine(line, lineNumber);
+            lineNumber++;
+        }
+
+        file.close();
+    }
+
+    void tokenizeLine(const string& line, int lineNumber) {
+        string code = line;
+
+        if (!line.empty() && !isspace(line[0]) && CurrentScope != "global") {
+            CurrentScope = "global";
+        }
 
             // Handle block comments or multiline string literals
             if (inBlockComment) {
@@ -168,20 +235,14 @@ class Lexer {
             regex delimiterRegex("[(){}\\[\\],.:;]");
             regex stringLiteralRegex("\".*?\"|'.*?'");
             regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
+            regex listRegex("\\[([^\\]]*)\\]");
+            regex tupleRegex("\\(([^\\)]*)\\)");
+
+            // ERROR regexes
+            regex malformedNumberRegex(R"(\b\d+(\.\d+){2,}|\d+\.\d+\.\d+|[+-]?\d*\.?\d*[eE]$|[+-]?\d*\.?\d*[eE][+-]?$)");
+            regex unterminatedStringRegex("\"[^\"]*$|'[^']*$");
 
             smatch match;
-
-            // Check for function definition
-           if (regex_search(code, match, functionDefRegex)) {
-                string functionName = match[1];
-                tokens.push_back({IDENTIFIER, functionName, lineNumber});
-
-                // Add the function to the symbol table with type "function"
-                addToSymbolTable(functionName, "function", CurrentScope);
-
-                CurrentScope = functionName; // Set the current scope to the function name
-                return; // No need to tokenize further for function definitions
-            }
 
             for (size_t i = 0; i < code.size();) {
                 if (isspace(code[i])) {
@@ -192,8 +253,24 @@ class Lexer {
                 string subCode = code.substr(i);
         
                 // Match string literals
+                if (regex_search(subCode, match, unterminatedStringRegex) && match.position() == 0) {
+                    string strLiteral = match.str();
+                    cerr << "Error: Unterminated string literal on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, strLiteral, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+        
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
-                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    string strLiteral = match.str();
+        
+                    if (regex_search(strLiteral, regex(R"(\\[^abfnrtv'\"\\])"))) {
+                        cerr << "Warning: Invalid escape sequence in string '" << strLiteral << "' on line " << lineNumber << endl;
+                        tokens.push_back({ERROR, strLiteral, lineNumber});
+                    } else {
+                        tokens.push_back({LITERAL, strLiteral, lineNumber});
+                    }
+        
                     i += match.length();
                     continue;
                 }
@@ -211,30 +288,46 @@ class Lexer {
                     i += match.length();
                     continue;
                 }
+
+                // Match list literals
+                if (regex_search(subCode, match, listRegex) && match.position() == 0) {
+                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    i += match.length();
+                    continue;
+                }
+    
+                // Match tuple literals
+                if (regex_search(subCode, match, tupleRegex) && match.position() == 0) {
+                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    i += match.length();
+                    continue;
+                }
         
                 // Match keywords and identifiers
                 if (regex_search(subCode, match, keywordRegex) && match.position() == 0) {
                     string word = match.str();
         
+                    if (isdigit(word[0])) {
+                        cerr << "Error: Invalid identifier '" << word << "' starting with digit on line " << lineNumber << endl;
+                        tokens.push_back({ERROR, word, lineNumber});
+                        i += match.length();
+                        continue;
+                    }
+        
                     if (keywords.find(word) != keywords.end()) {
-                        // Add keyword to tokens
                         tokens.push_back({KEYWORD, word, lineNumber});
-                    } else {
-                        // Check if it's a built-in function
+                    } 
+                    else {
                         if (builtInFunctions.find(word) != builtInFunctions.end()) {
-                            // Skip adding built-in functions to the symbol table
                             i += match.length();
                             continue;
                         }
-                        // Add identifier to tokens
-                        tokens.push_back({IDENTIFIER, word, lineNumber});
         
-                        // Check if it's a variable assignment: identifier = something
+                        tokens.push_back({IDENTIFIER, word, lineNumber});
                         size_t equalPos = code.find('=', i + word.length());
                         if (equalPos != string::npos && code[equalPos - 1] != '=' && code[equalPos + 1] != '=') {
                             string rhs = code.substr(equalPos + 1);
-                            rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), ""); // Trim spaces
-                        
+                            rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), "");
                             string type = "unknown";
                         
                             // Infer type from RHS
@@ -250,31 +343,26 @@ class Lexer {
                                 type = "bool";
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
                                 type = "int"; // Arithmetic expressions result in int
+                            } else if (regex_match(rhs, listRegex)) {
+                                type = "list"; // List literal
+                            } else if (regex_match(rhs, tupleRegex)) {
+                                type = "tuple"; // Tuple literal
                             } else {
                                 // Handle expressions involving variables
                                 vector<string> tokens;
                                 stringstream ss(rhs);
                                 string token;
                                 while (ss >> token) {
-                                    tokens.push_back(token);
-                                }
-                        
-                                // Infer type based on the first variable or literal in the expression
-                                for (const string& tok : tokens) {
-                                    if (regex_match(tok, keywordRegex)) {
-                                        type = getVariableType(tok, CurrentScope);
+                                    if (regex_match(token, keywordRegex)) {
+                                        type = getVariableType(token, CurrentScope);
                                         if (type != "unknown") break;
-                                    } else if (regex_match(tok, regex("^[+-]?\\d+$"))) {
-                                        type = "int";
-                                        break;
-                                    } else if (regex_match(tok, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
-                                        type = "float";
-                                        break;
+                                    } else if (regex_match(token, regex("^[+-]?\\d+$"))) {
+                                        type = "int"; break;
+                                    } else if (regex_match(token, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
+                                        type = "float"; break;
                                     }
                                 }
                             }
-                        
-                            // Add to symbol table
                             addToSymbolTable(word, type, CurrentScope);
                         }
                     }
@@ -284,6 +372,14 @@ class Lexer {
                 }
         
                 // Match numbers
+                if (regex_search(subCode, match, malformedNumberRegex) && match.position() == 0) {
+                    string badNum = match.str();
+                    cerr << "Error: Malformed number literal '" << badNum << "' on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, badNum, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+        
                 if (regex_search(subCode, match, numberRegex) && match.position() == 0) {
                     tokens.push_back({LITERAL, match.str(), lineNumber});
                     i += match.length();
@@ -291,10 +387,20 @@ class Lexer {
                 }
         
                 // If no match, unrecognized token
-                cerr << "Warning: Unrecognized token '" << code[i] << "' on line " << lineNumber << endl;
+                cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
+                tokens.push_back({ERROR, string(1, code[i]), lineNumber});
                 i++;
             }
+
+            if (regex_search(code, match, functionDefRegex)) {
+                string functionName = match[1];
+                tokens.push_back({IDENTIFIER, functionName, lineNumber});
+                addToSymbolTable(functionName, "function", CurrentScope);
+                CurrentScope = functionName;
+                return;
+            }
         }
+        
         const vector<Token>& getTokens() const {
             return tokens;
         }
@@ -307,20 +413,17 @@ int main() {
     Lexer lexer;
     lexer.readFile("example.py");
 
-    // Token Table Header
     cout << left << setw(8) << "Line"
          << setw(15) << "Type"
          << setw(20) << "Value" << endl;
     cout << string(45, '-') << endl;
 
-    // Token Table Rows
     for (const auto& token : lexer.getTokens()) {
         cout << left << setw(8) << token.line
              << setw(15) << tokenTypeToString(token.type)
              << setw(20) << token.value << endl;
     }
 
-    // Symbol Table Header
     cout << "\n--- Symbol Table ---\n";
     cout << left << setw(6) << "ID"
          << setw(20) << "Name"
@@ -328,12 +431,12 @@ int main() {
          << setw(15) << "Scope" << endl;
     cout << string(56, '-') << endl;
 
-    // Symbol Table Rows
     for (const auto& id : lexer.getsymbols()) {
         cout << left << setw(6) << id.ID
              << setw(20) << id.name
              << setw(15) << id.type
              << setw(15) << id.Scope << endl;
     }
+
     return 0;
 }

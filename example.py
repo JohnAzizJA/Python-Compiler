@@ -3,6 +3,15 @@ def find_word_in_string(text, word):
     word = word.lower()
     return word in text
 
+numb = 1e
+numb = 1.1.0
+hello = "hi
+
+@john = 10
+
+1words = 15
+
+w e = 12
 
 """
 ay 7aga ay 7a$$$$$ga ay 7aga ay 7aga ay 7aga'''
@@ -27,8 +36,9 @@ def main():
     # value$value = 2
     # $value = 2
     # value5$ = 3
-    
-
+    ll = [1,2,3,4,5,6]
+    tt = (1,2)
+    ss = "string"
     print(value)
     print('the minimum value:\n' + min)
     print(value2)
