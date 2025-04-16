@@ -41,6 +41,7 @@ def main():
     hexadecimal = 0x0FAD
     expo = 3.33e10
     result = find_word_in_string(text, word)
+
     x, y = 1, 2
     ll = [1,2,3,4,5,6]
     tt = (1,2)

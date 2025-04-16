@@ -6,7 +6,7 @@
 
             // john's compiler path: C:\\msys64\\ucrt64\\bin\\g++.exe
             // michael's compiler path: D:\\Msys\\mingw64\\bin\\g++.exe
-            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+            "command": "D:\\Msys\\mingw64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
