@@ -286,6 +286,15 @@ public:
                     }
         
                     if (keywords.find(word) != keywords.end()) {
+                        if (word == "if" || word == "elif" || word == "else" || word == "while" || word == "for") {
+                            // Look ahead to see if there's no expression following
+                            smatch lookahead;
+                            string afterWord = code.substr(i + word.length());
+                            if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
+                                cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
+                                tokens.push_back({ERROR, "ExpectedCondition", lineNumber});
+                            }
+                        }
                         tokens.push_back({KEYWORD, word, lineNumber});
                     } 
                     else {

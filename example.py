@@ -3,6 +3,7 @@ def find_word_in_string(text, word):
     word = word.lower()
     return word in text
 
+
 int z = 25
 
 numb = 1e
