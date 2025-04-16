@@ -36,10 +36,6 @@ def main():
     expo = 3.33e10
     result = find_word_in_string(text, word)
     x, y = 1, 2
-    #error handling cases rg3hom lma t3ml elerror handling bta3 elinvalid charachters
-    # value$value = 2
-    # $value = 2
-    # value5$ = 3
     ll = [1,2,3,4,5,6]
     tt = (1,2)
     ss = "string"
