@@ -202,6 +202,11 @@ public:
             regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
             regex listRegex("\\[([^\\]]*)\\]");
             regex tupleRegex("\\(([^\\)]*)\\)");
+
+            // ERROR regexes
+            regex malformedNumberRegex(R"(\b\d+(\.\d+){2,}|\d+\.\d+\.\d+|[+-]?\d*\.?\d*[eE]$|[+-]?\d*\.?\d*[eE][+-]?$)");
+            regex unterminatedStringRegex("\"[^\"]*$|'[^']*$");
+
             smatch match;
 
         if (regex_search(code, match, functionDefRegex)) {
@@ -221,8 +226,24 @@ public:
                 string subCode = code.substr(i);
         
                 // Match string literals
+                if (regex_search(subCode, match, unterminatedStringRegex) && match.position() == 0) {
+                    string strLiteral = match.str();
+                    cerr << "Error: Unterminated string literal on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, strLiteral, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+        
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
-                    tokens.push_back({LITERAL, match.str(), lineNumber});
+                    string strLiteral = match.str();
+        
+                    if (regex_search(strLiteral, regex(R"(\\[^abfnrtv'\"\\])"))) {
+                        cerr << "Warning: Invalid escape sequence in string '" << strLiteral << "' on line " << lineNumber << endl;
+                        tokens.push_back({ERROR, strLiteral, lineNumber});
+                    } else {
+                        tokens.push_back({LITERAL, strLiteral, lineNumber});
+                    }
+        
                     i += match.length();
                     continue;
                 }
@@ -259,69 +280,47 @@ public:
                 if (regex_search(subCode, match, keywordRegex) && match.position() == 0) {
                     string word = match.str();
         
+                    if (isdigit(word[0])) {
+                        cerr << "Error: Invalid identifier '" << word << "' starting with digit on line " << lineNumber << endl;
+                        tokens.push_back({ERROR, word, lineNumber});
+                        i += match.length();
+                        continue;
+                    }
+        
                     if (keywords.find(word) != keywords.end()) {
-                        // Add keyword to tokens
                         tokens.push_back({KEYWORD, word, lineNumber});
                     } else {
-                        // Check if it's a built-in function
                         if (builtInFunctions.find(word) != builtInFunctions.end()) {
-                            // Skip adding built-in functions to the symbol table
                             i += match.length();
                             continue;
                         }
-                        // Add identifier to tokens
-                        tokens.push_back({IDENTIFIER, word, lineNumber});
         
-                        // Check if it's a variable assignment: identifier = something
+                        tokens.push_back({IDENTIFIER, word, lineNumber});
                         size_t equalPos = code.find('=', i + word.length());
                         if (equalPos != string::npos && code[equalPos - 1] != '=' && code[equalPos + 1] != '=') {
                             string rhs = code.substr(equalPos + 1);
-                            rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), ""); // Trim spaces
-                        
+                            rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), "");
                             string type = "unknown";
-                        
-                            // Infer type from RHS
-                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
-                                type = "int"; // Hexadecimal integer
-                            } else if (regex_match(rhs, regex("^[+-]?\\d+$"))) {
-                                type = "int"; // Decimal integer
-                            } else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
-                                type = "float"; // Float with optional exponent
-                            } else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) {
-                                type = "string";
-                            } else if (rhs == "True" || rhs == "False") {
-                                type = "bool";
-                            } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
-                                type = "int"; // Arithmetic expressions result in int
-                            } else if (regex_match(rhs, listRegex)) {
-                                type = "list"; // List literal
-                            } else if (regex_match(rhs, tupleRegex)) {
-                                type = "tuple"; // Tuple literal
-                            } else {
-                                // Handle expressions involving variables
-                                vector<string> tokens;
+        
+                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) type = "int";
+                            else if (regex_match(rhs, regex("^[+-]?\\d+$"))) type = "int";
+                            else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) type = "float";
+                            else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) type = "string";
+                            else if (rhs == "True" || rhs == "False") type = "bool";
+                            else {
                                 stringstream ss(rhs);
                                 string token;
                                 while (ss >> token) {
-                                    tokens.push_back(token);
-                                }
-                        
-                                // Infer type based on the first variable or literal in the expression
-                                for (const string& tok : tokens) {
-                                    if (regex_match(tok, keywordRegex)) {
-                                        type = getVariableType(tok, CurrentScope);
+                                    if (regex_match(token, keywordRegex)) {
+                                        type = getVariableType(token, CurrentScope);
                                         if (type != "unknown") break;
-                                    } else if (regex_match(tok, regex("^[+-]?\\d+$"))) {
-                                        type = "int";
-                                        break;
-                                    } else if (regex_match(tok, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
-                                        type = "float";
-                                        break;
+                                    } else if (regex_match(token, regex("^[+-]?\\d+$"))) {
+                                        type = "int"; break;
+                                    } else if (regex_match(token, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
+                                        type = "float"; break;
                                     }
                                 }
                             }
-                        
-                            // Add to symbol table
                             addToSymbolTable(word, type, CurrentScope);
                         }
                     }
@@ -331,6 +330,14 @@ public:
                 }
         
                 // Match numbers
+                if (regex_search(subCode, match, malformedNumberRegex) && match.position() == 0) {
+                    string badNum = match.str();
+                    cerr << "Error: Malformed number literal '" << badNum << "' on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, badNum, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+        
                 if (regex_search(subCode, match, numberRegex) && match.position() == 0) {
                     tokens.push_back({LITERAL, match.str(), lineNumber});
                     i += match.length();
@@ -338,10 +345,12 @@ public:
                 }
         
                 // If no match, unrecognized token
-                cerr << "Warning: Unrecognized token '" << code[i] << "' on line " << lineNumber << endl;
+                cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
+                tokens.push_back({ERROR, string(1, code[i]), lineNumber});
                 i++;
             }
         }
+        
         const vector<Token>& getTokens() const {
             return tokens;
         }
