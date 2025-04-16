@@ -41,6 +41,7 @@ string tokenTypeToString(TokenType type) {
 
 class Lexer {
 private:
+    vector<string> scopeStack; // Stack to track nested scopes
     vector<Identifier> symbol_table;
     vector<Token> tokens;
     string CurrentScope = "global";
@@ -96,6 +97,52 @@ private:
         return count;
     }
 
+    bool getNextLineIndentation(const int &lineNumber, const int &numberOfIndentation, const string &filename)
+    {
+        ifstream file(filename);
+        if (!file.is_open())
+        {
+            cerr << "Error: Could not open file " << filename << endl;
+            return false;
+        }
+
+        string line;
+        int currentLineNumber = 1;
+
+        // Navigate to the specified line
+        while (getline(file, line) && currentLineNumber < lineNumber)
+        {
+            currentLineNumber++;
+        }
+
+        // Read the next non-empty line
+        while (getline(file, line))
+        {
+            currentLineNumber++;
+            // Skip empty lines
+            if (line.empty() || all_of(line.begin(), line.end(), [](unsigned char ch)
+                                       { return isspace(ch); }))
+            {
+                continue;
+            }
+
+            // Get the indentation level of the next non-empty line
+            int nextIndentation = getIndentationLevel(line);
+
+            // Compare the indentation level
+            if (nextIndentation == numberOfIndentation)
+            {
+                return true; // Same indentation level
+            }
+            else
+            {
+                return false; // Different indentation level
+            }
+        }
+
+        return false; // No more lines to read
+    }
+
 public:
     void readFile(const string& filename) {
         ifstream file(filename);
@@ -120,35 +167,43 @@ public:
                 tokens.push_back({ERROR, "BadIndent", lineNumber});
             }
 
-            if (expectingIndentedBlock) {
-                if (indentation <= previousIndentation) {
-                    cerr << "Error: Expected indented block after ':' on line " << lineNumber - 1 << endl;
-                    tokens.push_back({ERROR, "MissingIndent", lineNumber});
-                    expectingIndentedBlock = false;
-                } else {
-                    expectedIndentation = indentation;
-                    expectingIndentedBlock = false;
+            // Handle scope transitions
+            if (indentation > previousIndentation) {
+                // Entering a new block
+                if (!scopeStack.empty()) {
+                    CurrentScope = scopeStack.back();
+                }
+            } else if (indentation < previousIndentation) {
+                // Exiting a block
+                if (!scopeStack.empty()) {
+                    scopeStack.pop_back();
+                    CurrentScope = scopeStack.empty() ? "global" : scopeStack.back();
                 }
             }
 
-            if (indentation == 0 && CurrentScope != "global") {
-                CurrentScope = "global";
-                expectedIndentation = 0;
+            // Detect block-inducing keywords (e.g., def, class, if, for, while)
+            if (regex_search(line, regex("^\\s*(def|class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"))) {
+                smatch match;
+                regex_search(line, match, regex("^\\s*(def|class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"));
+                string blockName = match[2];
+                scopeStack.push_back(blockName);
+                CurrentScope = blockName;
             }
 
             previousIndentation = indentation;
 
-            tokenizeLine(line, lineNumber);
+            tokenizeLine(line, lineNumber, filename);
             lineNumber++;
         }
 
         file.close();
     }
-
-    void tokenizeLine(const string& line, int lineNumber) {
+        
+    void tokenizeLine(const string& line, int lineNumber, string filename) {
         string code = line;
 
-        if (!line.empty() && !isspace(line[0]) && CurrentScope != "global") {
+        if (getNextLineIndentation(lineNumber, 0, filename) && !scopeStack.empty()) {
+            scopeStack.clear();
             CurrentScope = "global";
         }
 
@@ -376,7 +431,11 @@ public:
                 string functionName = match[1];
                 tokens.push_back({IDENTIFIER, functionName, lineNumber});
                 addToSymbolTable(functionName, "function", CurrentScope);
-                CurrentScope = functionName;
+            
+                // Push the new function scope onto the stack
+                scopeStack.push_back(functionName);
+                CurrentScope = functionName; // Update the current scope
+            
                 return;
             }
         }
