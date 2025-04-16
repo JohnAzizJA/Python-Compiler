@@ -29,6 +29,12 @@ ay 7aga ay 7a$$$$$ga ay 7aga ay 7aga ay 7aga'''
 
 '''hello hello hello hello'''; idk = 11
 
+multiline = """This is a multiline 
+string"""
+
+multiline = '''This is a multiline 
+string'''
+
 
 def main():
     print("Welcome to the Word Finder!")
