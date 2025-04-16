@@ -209,14 +209,6 @@ public:
 
             smatch match;
 
-        if (regex_search(code, match, functionDefRegex)) {
-            string functionName = match[1];
-            tokens.push_back({IDENTIFIER, functionName, lineNumber});
-            addToSymbolTable(functionName, "function", CurrentScope);
-            CurrentScope = functionName;
-            return;
-        }
-
             for (size_t i = 0; i < code.size();) {
                 if (isspace(code[i])) {
                     i++;
@@ -349,6 +341,14 @@ public:
                 cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
                 tokens.push_back({ERROR, string(1, code[i]), lineNumber});
                 i++;
+            }
+
+            if (regex_search(code, match, functionDefRegex)) {
+                string functionName = match[1];
+                tokens.push_back({IDENTIFIER, functionName, lineNumber});
+                addToSymbolTable(functionName, "function", CurrentScope);
+                CurrentScope = functionName;
+                return;
             }
         }
         
