@@ -286,7 +286,7 @@ public:
                     }
         
                     if (keywords.find(word) != keywords.end()) {
-                        if (word == "if" || word == "elif" || word == "else" || word == "while" || word == "for") {
+                        if (word == "if" || word == "elif" || word == "while" || word == "for") {
                             // Look ahead to see if there's no expression following
                             smatch lookahead;
                             string afterWord = code.substr(i + word.length());
