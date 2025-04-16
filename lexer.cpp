@@ -294,13 +294,27 @@ public:
                             string rhs = code.substr(equalPos + 1);
                             rhs = regex_replace(rhs, regex("^\\s+|\\s+$"), "");
                             string type = "unknown";
-        
-                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) type = "int";
-                            else if (regex_match(rhs, regex("^[+-]?\\d+$"))) type = "int";
-                            else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) type = "float";
-                            else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) type = "string";
-                            else if (rhs == "True" || rhs == "False") type = "bool";
-                            else {
+                        
+                            // Infer type from RHS
+                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
+                                type = "int"; // Hexadecimal integer
+                            } else if (regex_match(rhs, regex("^[+-]?\\d+$"))) {
+                                type = "int"; // Decimal integer
+                            } else if (regex_match(rhs, regex("^[+-]?(\\d*\\.\\d+|\\d+\\.\\d*)([eE][+-]?\\d+)?$"))) {
+                                type = "float"; // Float with optional exponent
+                            } else if (regex_match(rhs, regex("^(\".*\"|'.*')$"))) {
+                                type = "string";
+                            } else if (rhs == "True" || rhs == "False") {
+                                type = "bool";
+                            } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
+                                type = "int"; // Arithmetic expressions result in int
+                            } else if (regex_match(rhs, listRegex)) {
+                                type = "list"; // List literal
+                            } else if (regex_match(rhs, tupleRegex)) {
+                                type = "tuple"; // Tuple literal
+                            } else {
+                                // Handle expressions involving variables
+                                vector<string> tokens;
                                 stringstream ss(rhs);
                                 string token;
                                 while (ss >> token) {
