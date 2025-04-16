@@ -281,7 +281,9 @@ public:
                             string type = "unknown";
                         
                             // Infer type from RHS
-                            if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
+                            if (regex_match(rhs, regex("^\\s*input\\s*\\(.*\\)\\s*$"))) {
+                                type = "string"; // Default
+                            } else if (regex_match(rhs, regex("^0[xX][0-9a-fA-F]+$"))) {
                                 type = "int"; // Hexadecimal integer
                             } else if (regex_match(rhs, regex("^[+-]?\\d+$"))) {
                                 type = "int"; // Decimal integer
