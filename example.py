@@ -51,6 +51,7 @@ def main():
     x, y = 1, 2
     ll = [1,2,3,4,5,6]
     tt = (1,2)
+    ll = tt
     ss = "string"
     print(value)
     print('the minimum value:\n' + min)
