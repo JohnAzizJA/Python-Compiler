@@ -369,6 +369,7 @@ public:
         const vector<Token>& getTokens() const {
             return tokens;
         }
+        
         const vector<Identifier>& getsymbols() const {
             return symbol_table;
         }
