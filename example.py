@@ -11,6 +11,8 @@ hello = "hi
 
 1words = 15
 
+w e = 12
+
 """
 ay 7aga ay 7a$$$$$ga ay 7aga ay 7aga ay 7aga'''
 """
