@@ -65,9 +65,15 @@ private:
     };
 
     void addToSymbolTable(const string& name, const string& type, const string& scope) {
-        for (const auto& id : symbol_table) {
-            if (id.name == name && id.Scope == scope) return;
+        for (auto& id : symbol_table) {
+            // Check if the variable already exists in the same scope
+            if (id.name == name && id.Scope == scope) {
+                id.type = type; // Update the type
+                return;         // Exit after updating
+            }
         }
+    
+        // If the variable doesn't exist, add it as a new entry
         int newID = symbol_table.size() + 1;
         symbol_table.push_back({newID, name, type, scope});
     }
@@ -380,6 +386,17 @@ public:
                                 type = "string";
                             } else if (rhs == "True" || rhs == "False") {
                                 type = "bool";
+                            } else if (regex_match(rhs, regex("^input\\s*\\(.*\\)$"))) {
+                                type = "string"; // Input function returns a string
+                            } else if (regex_match(rhs, regex("^[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(.*\\)$"))) {
+                                type = "func return"; // Function call
+                            } else if (regex_match(rhs, regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+                                // RHS is a variable, get its type from the symbol table
+                                type = getVariableType(rhs, CurrentScope);
+                                if (type == "unknown") {
+                                    cerr << "Error: Variable '" << rhs << "' used before declaration on line " << lineNumber << endl;
+                                    tokens.push_back({ERROR, rhs, lineNumber});
+                                }
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
                                 type = "int"; // Arithmetic expressions result in int
                             } else if (regex_match(rhs, listRegex)) {

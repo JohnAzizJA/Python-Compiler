@@ -9,4 +9,4 @@
 - [ ] Errors in the symbol table
 - [ ] Global indentation for control blocks (e.g., `if`, `for`, `while` should not be globally indented)
 - [ ] `f` for format strings shouldn't be treated as an identifier
-- [ ] Assignments like `variable = variable` should not be treated as identifiers
+- [x] Assignments like `variable = variable` type of first 
