@@ -188,12 +188,12 @@ public:
             }
 
             // Detect block-inducing keywords (e.g., def, class, if, for, while)
-            if (regex_search(line, regex("^\\s*(def|class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"))) {
+            if (regex_search(line, regex("^\\s*(def|class|if|for|while)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"))) {
                 smatch match;
-                regex_search(line, match, regex("^\\s*(def|class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"));
-                string blockName = match[2];
-                scopeStack.push_back(blockName);
-                CurrentScope = blockName;
+                regex_search(line, match, regex("^\\s*(def|class|if|for|while)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"));
+                string blockName = match[2];  // The second captured group is the block name
+                scopeStack.push_back(blockName); // Push blockName to the scope stack
+                CurrentScope = blockName; // Set the current scope
             }
 
             previousIndentation = indentation;
@@ -339,16 +339,9 @@ public:
                 if (regex_search(subCode, match, keywordRegex) && match.position() == 0) {
                     string word = match.str();
         
-                    if (isdigit(word[0])) {
-                        cerr << "Error: Invalid identifier '" << word << "' starting with digit on line " << lineNumber << endl;
-                        tokens.push_back({ERROR, word, lineNumber});
-                        i += match.length();
-                        continue;
-                    }
-        
                     if (keywords.find(word) != keywords.end()) {
                         if (word == "if" || word == "elif" || word == "while" || word == "for") {
-                            // Look ahead to see if there's no expression following
+                            // Look ahead to see if there's no expression followings
                             smatch lookahead;
                             string afterWord = code.substr(i + word.length());
                             if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
