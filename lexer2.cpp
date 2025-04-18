@@ -40,242 +40,178 @@ string tokenTypeToString(TokenType type) {
 }
 
 class Lexer {
-private:
-    vector<string> scopeStack; // Stack to track nested scopes
-    vector<Identifier> symbol_table;
-    vector<Token> tokens;
-    string CurrentScope = "global";
-    bool inBlockComment = false;
-    int previousIndentation = 0;
-    int expectedIndentation = 0;
-    bool expectingIndentedBlock = false;
+    private:
+        vector<tuple<string, int, int>> CodeLines; 
+        vector<string> scopeStack; 
+        vector<Identifier> symbol_table;
+        vector<Token> tokens;
+        string CurrentScope = "global";
+        bool inBlockComment = false;
+        int previousIndentation = 0;
+        int expectedIndentation = 0;
+        bool expectingIndentedBlock = false;
 
-    unordered_set<string> builtInFunctions = {
-        "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
-    };
+        unordered_set<string> builtInFunctions = {
+            "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
+        };
 
-    unordered_set<string> keywords = {
-        "import", "from", "as",
-        "if", "elif", "else",
-        "for", "while", "break", "continue", "pass",
-        "and", "or", "not", "in", "is",
-        "def", "class",
-        "return", "yield",
-        "True", "False", "None"
-    };
-
-    void addToSymbolTable(const string& name, const string& type, const string& scope) {
-        for (auto& id : symbol_table) {
-            // Check if the variable already exists in the same scope
-            if (id.name == name && id.Scope == scope) {
-                id.type = type; // Update the type
-                return;         // Exit after updating
+        unordered_set<string> keywords = {
+            "import", "from", "as",
+            "if", "elif", "else",
+            "for", "while", "break", "continue", "pass",
+            "def", "class", 
+            "return", "yield",
+            "True", "False", "None"
+        };
+        int getIndentationLevel(const string& line) {
+            int count = 0;
+            for (char ch : line) {
+                if (ch == ' ') count++;
+                else if (ch == '\t') count += 4; // tab = 4 spaces
+                else break;
             }
+            return count;
         }
-    
-        // If the variable doesn't exist, add it as a new entry
-        int newID = symbol_table.size() + 1;
-        symbol_table.push_back({newID, name, type, scope});
-    }
-
-    string getVariableType(const string& name, const string& scope) {
-        for (const auto& id : symbol_table) {
-            if (id.name == name && id.Scope == scope) {
-                return id.type;
-            }
-        }
-        return "unknown";
-    }
-
-    bool isUnterminatedString(const string& str) {
-        int singleQuotes = count(str.begin(), str.end(), '\'');
-        int doubleQuotes = count(str.begin(), str.end(), '"');
-        return (singleQuotes % 2 != 0) || (doubleQuotes % 2 != 0);
-    }
-
-    int getIndentationLevel(const string& line) {
-        int count = 0;
-        for (char ch : line) {
-            if (ch == ' ') count++;
-            else if (ch == '\t') count += 4; // tab = 4 spaces
-            else break;
-        }
-        return count;
-    }
-
-    bool getNextLineIndentation(const int &lineNumber, const int &numberOfIndentation, const string &filename)
-    {
-        ifstream file(filename);
-        if (!file.is_open())
-        {
-            cerr << "Error: Could not open file " << filename << endl;
-            return false;
-        }
-
-        string line;
-        int currentLineNumber = 1;
-
-        // Navigate to the specified line
-        while (getline(file, line) && currentLineNumber < lineNumber)
-        {
-            currentLineNumber++;
-        }
-
-        // Read the next non-empty line
-        while (getline(file, line))
-        {
-            currentLineNumber++;
-            // Skip empty lines
-            if (line.empty() || all_of(line.begin(), line.end(), [](unsigned char ch)
-                                       { return isspace(ch); }))
-            {
-                continue;
-            }
-
-            // Get the indentation level of the next non-empty line
-            int nextIndentation = getIndentationLevel(line);
-
-            // Compare the indentation level
-            if (nextIndentation == numberOfIndentation)
-            {
-                return true; // Same indentation level
-            }
-            else
-            {
-                return false; // Different indentation level
-            }
-        }
-
-        return false; // No more lines to read
-    }
-
-public:
-    void readFile(const string& filename) {
-        ifstream file(filename);
-        if (!file.is_open()) {
-            cerr << "Error: Could not open file " << filename << endl;
-            return;
-        }
-
-        string line;
-        int lineNumber = 1;
-        while (getline(file, line)) {
-            int indentation = getIndentationLevel(line);
-
-            // Check for invalid indentation globally (outside functions)
-            if (CurrentScope == "global" && indentation > 0) {
-                cerr << "Error: Unexpected indentation in global scope on line " << lineNumber << endl;
-                tokens.push_back({ERROR, "UnexpectedIndent", lineNumber});
-            }
-
-            if (indentation % 4 != 0) {
-                cerr << "Warning: Inconsistent indentation on line " << lineNumber << endl;
-                tokens.push_back({ERROR, "BadIndent", lineNumber});
-            }
-
-            // Handle scope transitions
-            if (indentation > previousIndentation) {
-                // Entering a new block
-                if (!scopeStack.empty()) {
-                    CurrentScope = scopeStack.back();
-                }
-            } else if (indentation < previousIndentation) {
-                // Exiting a block
-                if (!scopeStack.empty()) {
-                    scopeStack.pop_back();
-                    CurrentScope = scopeStack.empty() ? "global" : scopeStack.back();
-                }
-            }
-
-            // Detect block-inducing keywords (e.g., def, class, if, for, while)
-            if (regex_search(line, regex("^\\s*(def|class|if|for|while)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"))) {
-                smatch match;
-                regex_search(line, match, regex("^\\s*(def|class|if|for|while)\\s+([a-zA-Z_][a-zA-Z0-9_]*)"));
-                string blockName = match[2];  // The second captured group is the block name
-                scopeStack.push_back(blockName); // Push blockName to the scope stack
-                CurrentScope = blockName; // Set the current scope
-            }
-
-            previousIndentation = indentation;
-
-            tokenizeLine(line, lineNumber, filename);
-            lineNumber++;
-        }
-
-        file.close();
-    }
-        
-    void tokenizeLine(const string& line, int lineNumber, string filename) {
-        string code = line;
-
-        if (getNextLineIndentation(lineNumber, 0, filename) && !scopeStack.empty()) {
-            scopeStack.clear();
-            CurrentScope = "global";
-        }
-
-            // Handle block comments or multiline string literals
-            if (inBlockComment) {
-                size_t endBlock = line.find("\"\"\"");
-                if (endBlock != string::npos) {
-                    inBlockComment = false;
-                    code = line.substr(endBlock + 3); // Skip the block comment
-                } else {
-                    return; // Entire line is part of the block comment
+        void addToSymbolTable(const string& name, const string& type, const string& scope) {
+            for (auto& id : symbol_table) {
+                // Check if the variable already exists in the same scope
+                if (id.name == name && id.Scope == scope) {
+                    id.type = type; // Update the type
+                    return;         // Exit after updating
                 }
             }
         
-            size_t startBlock = code.find("\"\"\"");
-            if (startBlock != string::npos) {
-                size_t equalsPos = code.find('=');
-                if (equalsPos != string::npos && equalsPos < startBlock) {
-                    size_t endBlock = code.find("\"\"\"", startBlock + 3);
-                    if (endBlock != string::npos) {
-                        string literal = code.substr(startBlock, endBlock - startBlock + 3);
-                        tokens.push_back({LITERAL, literal, lineNumber});
-                        code = code.substr(endBlock + 3);
-                    } else {
-                        inBlockComment = true;
-                        return;
+            // If the variable doesn't exist, add it as a new entry
+            int newID = symbol_table.size() + 1;
+            symbol_table.push_back({newID, name, type, scope});
+        }
+
+        string getVariableType(const string& name, const string& scope) {
+            for (const auto& id : symbol_table) {
+                if (id.name == name && id.Scope == scope) {
+                    return id.type;
+                }
+            }
+            return "unknown";
+        }
+
+    public:
+        void parser(string filename){
+            ifstream file(filename);
+            if (!file.is_open()) {
+                cerr << "Error: Could not open file " << filename << endl;
+                return;
+            }
+
+            string line;
+            int lineNumber = 1;
+
+            while (getline(file, line)) {
+                if (line.find("#") != string::npos) {
+                    line = line.substr(0, line.find("#")); // Remove comments
+                }
+                CodeLines.push_back(make_tuple(line, lineNumber, getIndentationLevel(line))); // Store the line of code with its line number and indentation level
+                lineNumber++;
+            }
+            file.close();
+        }
+        void tokenizeLine(const vector<tuple<string, int, int>>& lines) {
+            string currentBlockCommentDelimiter = "";
+        
+            for (const auto& [line, lineNumber, indentation] : lines) {
+                string currentLine = line;
+        
+                if (currentLine.empty() || all_of(currentLine.begin(), currentLine.end(), [](unsigned char ch) { return isspace(ch); })) {
+                    continue; // Skip empty lines
+                }
+        
+                // Handle ongoing block comments
+                if (inBlockComment) {
+                    if (currentLine.find(currentBlockCommentDelimiter) != string::npos) {
+                        inBlockComment = false;
+                        currentBlockCommentDelimiter = "";
                     }
-                } else {
-                    inBlockComment = true;
-                    code = code.substr(0, startBlock);
+                    continue;
+                }
+        
+                // Detect start of block comment
+                if ((currentLine.find("\"\"\"") != string::npos || currentLine.find("'''") != string::npos)) {
+                    size_t tripleQuoteCount = count(currentLine.begin(), currentLine.end(), '"');
+                    size_t singleQuoteCount = count(currentLine.begin(), currentLine.end(), '\'');
+        
+                    bool startsAndEndsOnSameLine = 
+                        (currentLine.find("\"\"\"") != string::npos && tripleQuoteCount >= 6) || 
+                        (currentLine.find("'''") != string::npos && singleQuoteCount >= 6);
+        
+                    if (!startsAndEndsOnSameLine) {
+                        if (currentLine.find("\"\"\"") != string::npos) {
+                            currentBlockCommentDelimiter = "\"\"\"";
+                        } else {
+                            currentBlockCommentDelimiter = "'''";
+                        }
+                        inBlockComment = true;
+                        continue;
+                    }
+                    // If it's a single-line block comment, skip it
+                    continue;
+                }
+                if (CurrentScope == "global" && indentation > 0) {
+                
+                    cerr << "Error: Indentation error on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, "IndentationError", lineNumber});
+                    continue;
+                }
+                    
+        
+                // Handle scope changes
+                if (indentation > previousIndentation) {
+                    if (expectingIndentedBlock) {
+                        scopeStack.push_back(CurrentScope);
+                        expectingIndentedBlock = false;
+                    }
+                } else if (indentation < previousIndentation) {
+                    if (!scopeStack.empty()) {
+                        scopeStack.pop_back();
+                    }
+                }
+                previousIndentation = indentation;
+        
+                // Update current scope
+                CurrentScope = scopeStack.empty() ? "global" : scopeStack.back();
+        
+                // Split line by semicolon
+                stringstream ss(currentLine);
+                string segment;
+                while (getline(ss, segment, ';')) {
+                    if (!segment.empty()) {
+                        tokenizeStatement(segment, lineNumber);
+                    }
                 }
             }
-        
-            size_t commentPos = code.find('#');
-            code = (commentPos != string::npos) ? code.substr(0, commentPos) : code;
-        
-            // Split by semicolons and tokenize each statement
-            vector<string> statements;
-            size_t start = 0, end;
-            while ((end = code.find(';', start)) != string::npos) {
-                statements.push_back(code.substr(start, end - start));
-                start = end + 1;
-            }
-            statements.push_back(code.substr(start));
-        
-            for (const string& statement : statements) {
-                tokenizeStatement(statement, lineNumber);
-            }
         }
+        
         void tokenizeStatement(const string& code, int lineNumber) {
             // Regular expressions for different token types
             regex keywordRegex("[a-zA-Z_][a-zA-Z0-9_]*");
             regex numberRegex("\\b(0[xX][0-9a-fA-F]+|\\d+(\\.\\d+)?([eE][+-]?\\d+)?)\\b");
             regex operatorRegex("(==|!=|<=|>=|[+\\-*/%=<>!&|^~])");
             regex delimiterRegex("[(){}\\[\\],.:;]");
+            regex formattedStringRegex(R"([fF]\".*?\"|[fF]\'.*?\')");
             regex stringLiteralRegex("\".*?\"|'.*?'");
             regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
             regex listRegex("\\[([^\\]]*)\\]");
             regex tupleRegex("\\(([^\\)]*)\\)");
-
+        
             // ERROR regexes
             regex malformedNumberRegex(R"(\b\d+(\.\d+){2,}|\d+\.\d+\.\d+|[+-]?\d*\.?\d*[eE]$|[+-]?\d*\.?\d*[eE][+-]?$)");
             regex unterminatedStringRegex("\"[^\"]*$|'[^']*$");
+            regex invalidAttributeRegex(R"(\b([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=)");
+            regex lhsNoRhsRegex(R"(^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*$)");
 
+
+        
             smatch match;
-
+        
             for (size_t i = 0; i < code.size();) {
                 if (isspace(code[i])) {
                     i++;
@@ -283,7 +219,14 @@ public:
                 }
         
                 string subCode = code.substr(i);
-        
+                // Match formatted string literals (f-strings)
+                if (regex_search(subCode, match, formattedStringRegex) && match.position() == 0) {
+                    string fStringLiteral = match.str();
+                    tokens.push_back({LITERAL, fStringLiteral, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+
                 // Match string literals
                 if (regex_search(subCode, match, unterminatedStringRegex) && match.position() == 0) {
                     string strLiteral = match.str();
@@ -292,17 +235,28 @@ public:
                     i += match.length();
                     continue;
                 }
+
+                if (regex_search(subCode, match, lhsNoRhsRegex)) {
+                    string lhs = match[1]; // Extract the LHS variable name
+                    cerr << "Error: Missing RHS for assignment to '" << lhs << "' on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, "MissingRHS", lineNumber});
+                    i += match.length();
+                    continue;
+                }
+
+                if (regex_search(subCode, match, invalidAttributeRegex) && subCode.find(':') == string::npos) {
+                    string strLiteral = match.str();
+                    cerr << "Error: Invalid attribute name with space on line " << lineNumber << endl;
+                    tokens.push_back({ERROR, strLiteral, lineNumber});
+                    i += match.length();
+                    continue;
+                }
+                
+
         
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
                     string strLiteral = match.str();
-        
-                    if (regex_search(strLiteral, regex(R"(\\[^abfnrtv'\"\\])"))) {
-                        cerr << "Warning: Invalid escape sequence in string '" << strLiteral << "' on line " << lineNumber << endl;
-                        tokens.push_back({ERROR, strLiteral, lineNumber});
-                    } else {
-                        tokens.push_back({LITERAL, strLiteral, lineNumber});
-                    }
-        
+                    tokens.push_back({LITERAL, strLiteral, lineNumber});
                     i += match.length();
                     continue;
                 }
@@ -320,14 +274,14 @@ public:
                     i += match.length();
                     continue;
                 }
-
+        
                 // Match list literals
                 if (regex_search(subCode, match, listRegex) && match.position() == 0) {
                     tokens.push_back({LITERAL, match.str(), lineNumber});
                     i += match.length();
                     continue;
                 }
-    
+        
                 // Match tuple literals
                 if (regex_search(subCode, match, tupleRegex) && match.position() == 0) {
                     tokens.push_back({LITERAL, match.str(), lineNumber});
@@ -347,16 +301,29 @@ public:
                             if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
                                 cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
                                 tokens.push_back({ERROR, "ExpectedCondition", lineNumber});
+                                i += match.length();
+                                continue;
                             } 
                             else if (subCode.find(':') == string::npos) {
                                 cerr << "Error: Expected ':' after keyword '" << word << "' on line " << lineNumber << endl;
                                 tokens.push_back({ERROR, "ExpectedColon", lineNumber});
+                                i += match.length();
+                                continue;
                             }
+                            CurrentScope = word + " line number " + to_string(lineNumber); 
+                            scopeStack.push_back( word + " line number " + to_string(lineNumber));
                         }
+                        else if (word == "else")
+                        {
+                            CurrentScope = word + " line number " + to_string(lineNumber); 
+                            scopeStack.push_back( word + " line number " + to_string(lineNumber));
+                        }
+                        
                         tokens.push_back({KEYWORD, word, lineNumber});
                     } 
                     else {
                         if (builtInFunctions.find(word) != builtInFunctions.end()) {
+                            tokens.push_back({IDENTIFIER, word, lineNumber});
                             i += match.length();
                             continue;
                         }
@@ -440,20 +407,18 @@ public:
                 tokens.push_back({ERROR, string(1, code[i]), lineNumber});
                 i++;
             }
-
+        
+            // Match function definitions
             if (regex_search(code, match, functionDefRegex)) {
                 string functionName = match[1];
                 tokens.push_back({IDENTIFIER, functionName, lineNumber});
                 addToSymbolTable(functionName, "function", CurrentScope);
-            
+        
                 // Push the new function scope onto the stack
                 scopeStack.push_back(functionName);
                 CurrentScope = functionName; // Update the current scope
-            
-                return;
             }
         }
-        
         const vector<Token>& getTokens() const {
             return tokens;
         }
@@ -461,11 +426,16 @@ public:
         const vector<Identifier>& getsymbols() const {
             return symbol_table;
         }
+        const vector<tuple<string, int, int>>& getcodelines() const {
+            return CodeLines;
+        }
+
 };
 
 int main() {
     Lexer lexer;
-    lexer.readFile("example.py");
+    lexer.parser("example.py");
+    lexer.tokenizeLine(lexer.getcodelines());
 
     cout << left << setw(8) << "Line"
          << setw(15) << "Type"
@@ -476,6 +446,7 @@ int main() {
         cout << left << setw(8) << token.line
              << setw(15) << tokenTypeToString(token.type)
              << setw(20) << token.value << endl;
+    
     }
 
     cout << "\n--- Symbol Table ---\n";
@@ -483,8 +454,7 @@ int main() {
          << setw(20) << "Name"
          << setw(15) << "Type"
          << setw(15) << "Scope" << endl;
-    cout << string(56, '-') << endl;
-
+         cout << string(56, '-') << endl;
     for (const auto& id : lexer.getsymbols()) {
         cout << left << setw(6) << id.ID
              << setw(20) << id.name
@@ -494,3 +464,4 @@ int main() {
 
     return 0;
 }
+
