@@ -3,11 +3,11 @@ def find_word_in_string(text, word):
     word = word.lower()
     return word in text
 
+t = 
 if
 
 if x
 
-t = 
 
 int z = 25
 
@@ -35,6 +35,10 @@ string"""
 multiline = '''This is a multiline 
 string'''
 
+if x == 1:
+    print("x is 1")
+else:
+    print("x is not 1")
 
 def main():
     print("Welcome to the Word Finder!")
@@ -69,3 +73,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    x = "123"
+
