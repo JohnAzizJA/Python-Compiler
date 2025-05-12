@@ -3,13 +3,7 @@
         {
             "type": "cppbuild",
             "label": "C/C++: g++.exe build active file",
-<<<<<<< HEAD
-
-            // john's compiler path: C:\\msys64\\ucrt64\\bin\\g++.exe
-            // michael's compiler path: D:\\Msys\\mingw64\\bin\\g++.exe
-=======
-            //  "command": "D:\\Msys\\mingw64\\bin\\g++.exe",
->>>>>>> bb7633af0c73c9ec76ffa415bbe49a6d69971412
+            // "command": "D:\\Msys\\mingw64\\bin\\g++.exe",
             "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
