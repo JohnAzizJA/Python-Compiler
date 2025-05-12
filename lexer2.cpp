@@ -393,7 +393,7 @@ class Lexer {
 
 int main() {
     Lexer lexer;
-    lexer.parser("example.py");
+    lexer.parser("errors.py");
     lexer.tokenizeLine(lexer.getcodelines());
 
     cout << left << setw(8) << "Line"
