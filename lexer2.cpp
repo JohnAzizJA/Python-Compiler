@@ -63,7 +63,7 @@ class Lexer {
             "return", "yield",
             "True", "False", "None"
         };
-        
+
         int getIndentationLevel(const string& line) {
             int count = 0;
             for (char ch : line) {
@@ -430,12 +430,6 @@ class Lexer {
             return CodeLines;
         }
 
-};
-
-class Parser {
-    private:
-        
-    public:
 };
 
 int main() {
