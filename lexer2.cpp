@@ -7,37 +7,9 @@
 #include <regex>
 #include <iomanip>
 #include <algorithm>
+#include "definitions.h"
 
 using namespace std;
-
-enum TokenType {
-    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER, ERROR
-};
-
-struct Token {
-    TokenType type;
-    string value;
-    int line;
-};
-
-struct Identifier {
-    int ID;
-    string name;
-    string type;
-    string Scope;
-};
-
-string tokenTypeToString(TokenType type) {
-    switch (type) {
-        case IDENTIFIER: return "IDENTIFIER";
-        case KEYWORD: return "KEYWORD";
-        case OPERATOR: return "OPERATOR";
-        case LITERAL: return "LITERAL";
-        case DELIMITER: return "DELIMITER";
-        case ERROR: return "ERROR";
-        default: return "UNKNOWN";
-    }
-}
 
 class Lexer {
     private:
@@ -50,19 +22,6 @@ class Lexer {
         int previousIndentation = 0;
         int expectedIndentation = 0;
         bool expectingIndentedBlock = false;
-
-        unordered_set<string> builtInFunctions = {
-            "print", "input", "lower", "upper", "len", "range", "str", "int", "float", "bool", "list", "dict", "set", "tuple"
-        };
-
-        unordered_set<string> keywords = {
-            "import", "from", "as",
-            "if", "elif", "else",
-            "for", "while", "break", "continue", "pass",
-            "def", "class", 
-            "return", "yield",
-            "True", "False", "None"
-        };
 
         int getIndentationLevel(const string& line) {
             int count = 0;
