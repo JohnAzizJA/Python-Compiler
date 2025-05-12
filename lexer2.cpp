@@ -63,6 +63,7 @@ class Lexer {
             "return", "yield",
             "True", "False", "None"
         };
+        
         int getIndentationLevel(const string& line) {
             int count = 0;
             for (char ch : line) {
@@ -72,6 +73,7 @@ class Lexer {
             }
             return count;
         }
+
         void addToSymbolTable(const string& name, const string& type, const string& scope) {
             for (auto& id : symbol_table) {
                 // Check if the variable already exists in the same scope
@@ -115,6 +117,7 @@ class Lexer {
             }
             file.close();
         }
+        
         void tokenizeLine(const vector<tuple<string, int, int>>& lines) {
             string currentBlockCommentDelimiter = "";
         
@@ -160,8 +163,7 @@ class Lexer {
                     cerr << "Error: Indentation error on line " << lineNumber << endl;
                     tokens.push_back({ERROR, "IndentationError", lineNumber});
                     continue;
-                }
-                    
+                } 
         
                 // Handle scope changes
                 if (indentation > previousIndentation) {
@@ -208,8 +210,6 @@ class Lexer {
             regex invalidAttributeRegex(R"(\b([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=)");
             regex lhsNoRhsRegex(R"(^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*$)");
 
-
-        
             smatch match;
         
             for (size_t i = 0; i < code.size();) {
@@ -251,8 +251,6 @@ class Lexer {
                     i += match.length();
                     continue;
                 }
-                
-
         
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
                     string strLiteral = match.str();
@@ -419,6 +417,7 @@ class Lexer {
                 CurrentScope = functionName; // Update the current scope
             }
         }
+
         const vector<Token>& getTokens() const {
             return tokens;
         }
@@ -426,10 +425,17 @@ class Lexer {
         const vector<Identifier>& getsymbols() const {
             return symbol_table;
         }
+
         const vector<tuple<string, int, int>>& getcodelines() const {
             return CodeLines;
         }
 
+};
+
+class Parser {
+    private:
+        
+    public:
 };
 
 int main() {
