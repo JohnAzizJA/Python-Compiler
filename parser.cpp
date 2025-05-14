@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <fstream>
+#include <sstream>
 #include "definitions.h"
 
 using namespace std;
@@ -16,6 +18,7 @@ public:
     string type;
     string value;
     vector<shared_ptr<ParseTreeNode>> children;
+    static int nodeCounter;
 
     ParseTreeNode(const string& t, const string& v = "") : type(t), value(v) {}
 
@@ -35,7 +38,37 @@ public:
             child->print(indent + 1);
         }
     }
+    
+    // Generate DOT representation of the node and its children
+    void toDot(ostream& out, int& nodeId) const {
+        int myId = nodeId++;
+        
+        // Node label
+        string label = type;
+        if (!value.empty()) {
+            label += ": " + value;
+        }
+        
+        // Escape quotes in the label
+        size_t pos = 0;
+        while ((pos = label.find("\"", pos)) != string::npos) {
+            label.replace(pos, 1, "\\\"");
+            pos += 2;
+        }
+        
+        out << "  node" << myId << " [label=\"" << label << "\"];" << endl;
+        
+        // Connect to children
+        for (const auto& child : children) {
+            int childId = nodeId;
+            child->toDot(out, nodeId);
+            out << "  node" << myId << " -> node" << childId << ";" << endl;
+        }
+    }
 };
+
+// Initialize static counter
+int ParseTreeNode::nodeCounter = 0;
 
 // Parser class for syntax analysis
 class Parser {
@@ -130,16 +163,31 @@ private:
             return parseForStatement();
         } else if (match(KEYWORD, "def")) {
             return parseFunctionDef();
+        } else if (match(KEYWORD, "class")) {
+            return parseClassDef();
         } else if (match(KEYWORD, "return")) {
             return parseReturnStatement();
+        } else if (match(KEYWORD, "pass")) {
+            return parsePassStatement();
+        } else if (match(KEYWORD, "break")) {
+            return parseBreakStatement();
+        } else if (match(KEYWORD, "continue")) {
+            return parseContinueStatement();
+        } else if (match(KEYWORD, "import") || match(KEYWORD, "from")) {
+            return parseImportStatement();
         } else if (match(IDENTIFIER)) {
             // Look ahead to see if this is an assignment
             size_t savedPos = currentPos;
             consume(); // consume identifier
             
-            if (match(OPERATOR, "=")) {
+            if (match(OPERATOR, "=") || match(OPERATOR, "+=") || match(OPERATOR, "-=") || 
+                match(OPERATOR, "*=") || match(OPERATOR, "/=") || match(OPERATOR, "%=") || 
+                match(OPERATOR, "//=")) {
                 currentPos = savedPos; // rewind
                 return parseAssignment();
+            } else if (match(DELIMITER, "(")) {
+                currentPos = savedPos; // rewind
+                return parseFunctionCallStatement();
             } else {
                 currentPos = savedPos; // rewind
                 return parseExpressionStatement();
@@ -156,19 +204,31 @@ private:
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
         
         // Parse condition
-        node->addChild(parseExpression());
+        node->addChild(parseTest());
         
         // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after if condition");
         
         // Parse then-block
-        node->addChild(parseBlock());
+        node->addChild(parseSuite());
+        
+        // Parse optional elif blocks
+        while (match(KEYWORD, "elif")) {
+            auto elifNode = make_shared<ParseTreeNode>("ElifClause");
+            elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
+            elifNode->addChild(parseTest());
+            expect(DELIMITER, ":", "Expected ':' after elif condition");
+            elifNode->addChild(parseSuite());
+            node->addChild(elifNode);
+        }
         
         // Parse optional else-block
         if (match(KEYWORD, "else")) {
-            node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
+            auto elseNode = make_shared<ParseTreeNode>("ElseClause");
+            elseNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             expect(DELIMITER, ":", "Expected ':' after 'else'");
-            node->addChild(parseBlock());
+            elseNode->addChild(parseSuite());
+            node->addChild(elseNode);
         }
         
         return node;
@@ -181,13 +241,13 @@ private:
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
         
         // Parse condition
-        node->addChild(parseExpression());
+        node->addChild(parseTest());
         
         // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after while condition");
         
         // Parse body
-        node->addChild(parseBlock());
+        node->addChild(parseSuite());
         
         return node;
     }
@@ -206,13 +266,13 @@ private:
         node->addChild(make_shared<ParseTreeNode>("Keyword", "in"));
         
         // Parse iterable expression
-        node->addChild(parseExpression());
+        node->addChild(parseTest());
         
         // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after for statement");
         
         // Parse body
-        node->addChild(parseBlock());
+        node->addChild(parseSuite());
         
         return node;
     }
@@ -235,6 +295,7 @@ private:
                 paramsNode->addChild(make_shared<ParseTreeNode>("Parameter", expect(IDENTIFIER, "Expected parameter name").value));
                 if (match(DELIMITER, ",")) {
                     consume();
+                    if (match(DELIMITER, ")")) break; // Handle trailing comma
                 } else {
                     break;
                 }
@@ -248,7 +309,32 @@ private:
         expect(DELIMITER, ":", "Expected ':' after function declaration");
         
         // Parse function body
-        node->addChild(parseBlock());
+        node->addChild(parseSuite());
+        
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseClassDef() {
+        auto node = make_shared<ParseTreeNode>("ClassDefinition");
+        
+        // Parse 'class' keyword
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
+        
+        // Parse class name
+        node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected class name after 'class'").value));
+        
+        // Parse optional parent class
+        if (match(DELIMITER, "(")) {
+            consume(); // consume '('
+            node->addChild(make_shared<ParseTreeNode>("Parent", expect(IDENTIFIER, "Expected parent class name").value));
+            expect(DELIMITER, ")", "Expected ')' after parent class name");
+        }
+        
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after class declaration");
+        
+        // Parse class body
+        node->addChild(parseSuite());
         
         return node;
     }
@@ -261,7 +347,92 @@ private:
         
         // Parse optional return value
         if (!match(DELIMITER, ";") && currentPos < tokens.size()) {
-            node->addChild(parseExpression());
+            node->addChild(parseTest());
+        }
+        
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parsePassStatement() {
+        auto node = make_shared<ParseTreeNode>("PassStatement");
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value)); // 'pass'
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseBreakStatement() {
+        auto node = make_shared<ParseTreeNode>("BreakStatement");
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value)); // 'break'
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseContinueStatement() {
+        auto node = make_shared<ParseTreeNode>("ContinueStatement");
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value)); // 'continue'
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseImportStatement() {
+        auto node = make_shared<ParseTreeNode>("ImportStatement");
+        
+        // Parse 'import' or 'from' keyword
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
+        
+        if (node->children[0]->value == "import") {
+            // Parse module name
+            node->addChild(parseDottedName());
+            
+            // Parse optional 'as' clause
+            if (match(KEYWORD, "as")) {
+                consume(); // consume 'as'
+                node->addChild(make_shared<ParseTreeNode>("Alias", expect(IDENTIFIER, "Expected identifier after 'as'").value));
+            }
+            
+            // Parse additional imports
+            while (match(DELIMITER, ",")) {
+                consume(); // consume ','
+                node->addChild(parseDottedName());
+                
+                // Parse optional 'as' clause
+                if (match(KEYWORD, "as")) {
+                    consume(); // consume 'as'
+                    node->addChild(make_shared<ParseTreeNode>("Alias", expect(IDENTIFIER, "Expected identifier after 'as'").value));
+                }
+            }
+        } else if (node->children[0]->value == "from") {
+            // Parse module name
+            node->addChild(parseDottedName());
+            
+            // Parse 'import' keyword
+            expect(KEYWORD, "import", "Expected 'import' after module name");
+            
+            // Parse '*' or specific imports
+            if (match(OPERATOR, "*")) {
+                node->addChild(make_shared<ParseTreeNode>("ImportAll", consume().value));
+            } else {
+                // Parse name to import
+                node->addChild(make_shared<ParseTreeNode>("ImportName", expect(IDENTIFIER, "Expected name to import").value));
+                
+                // Parse optional 'as' clause
+                if (match(KEYWORD, "as")) {
+                    consume(); // consume 'as'
+                    node->addChild(make_shared<ParseTreeNode>("Alias", expect(IDENTIFIER, "Expected identifier after 'as'").value));
+                }
+            }
+        }
+        
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseDottedName() {
+        auto node = make_shared<ParseTreeNode>("DottedName");
+        
+        // Parse first part of the name
+        node->addChild(make_shared<ParseTreeNode>("NamePart", expect(IDENTIFIER, "Expected identifier").value));
+        
+        // Parse additional parts
+        while (match(DELIMITER, ".")) {
+            consume(); // consume '.'
+            node->addChild(make_shared<ParseTreeNode>("NamePart", expect(IDENTIFIER, "Expected identifier after '.'").value));
         }
         
         return node;
@@ -270,26 +441,84 @@ private:
     shared_ptr<ParseTreeNode> parseAssignment() {
         auto node = make_shared<ParseTreeNode>("Assignment");
         
-        // Parse target
-        node->addChild(make_shared<ParseTreeNode>("Target", expect(IDENTIFIER, "Expected identifier").value));
+        // Parse identifier list (target)
+        auto targetNode = make_shared<ParseTreeNode>("IdentifierList");
+        targetNode->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected identifier").value));
         
-        // Parse '='
-        expect(OPERATOR, "=", "Expected '=' in assignment");
+        while (match(DELIMITER, ",")) {
+            consume(); // consume ','
+            targetNode->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected identifier after ','").value));
+        }
         
-        // Parse expression
-        node->addChild(parseExpression());
+        node->addChild(targetNode);
+        
+        // Parse assignment operator
+        string op = consume().value; // =, +=, -=, etc.
+        node->addChild(make_shared<ParseTreeNode>("AssignOp", op));
+        
+        // Parse expression list (value)
+        auto valueNode = make_shared<ParseTreeNode>("ExpressionList");
+        valueNode->addChild(parseTest());
+        
+        while (match(DELIMITER, ",")) {
+            consume(); // consume ','
+            valueNode->addChild(parseTest());
+        }
+        
+        node->addChild(valueNode);
+        
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseFunctionCallStatement() {
+        auto node = make_shared<ParseTreeNode>("FunctionCallStatement");
+        
+        // Parse function name (could be dotted)
+        if (match(IDENTIFIER)) {
+            size_t savedPos = currentPos;
+            string name = consume().value;
+            
+            if (match(DELIMITER, ".")) {
+                // It's a dotted name
+                currentPos = savedPos;
+                node->addChild(parseDottedName());
+            } else {
+                // It's a simple name
+                currentPos = savedPos;
+                node->addChild(make_shared<ParseTreeNode>("Identifier", consume().value));
+            }
+        } else {
+            syntaxError("Expected function name");
+        }
+        
+        // Parse arguments
+        expect(DELIMITER, "(", "Expected '(' after function name");
+        
+        auto argsNode = make_shared<ParseTreeNode>("Arguments");
+        if (!match(DELIMITER, ")")) {
+            argsNode->addChild(parseTest());
+            
+            while (match(DELIMITER, ",")) {
+                consume(); // consume ','
+                if (match(DELIMITER, ")")) break; // Handle trailing comma
+                argsNode->addChild(parseTest());
+            }
+        }
+        
+        node->addChild(argsNode);
+        expect(DELIMITER, ")", "Expected ')' after function arguments");
         
         return node;
     }
 
     shared_ptr<ParseTreeNode> parseExpressionStatement() {
         auto node = make_shared<ParseTreeNode>("ExpressionStatement");
-        node->addChild(parseExpression());
+        node->addChild(parseTest());
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseBlock() {
-        auto node = make_shared<ParseTreeNode>("Block");
+    shared_ptr<ParseTreeNode> parseSuite() {
+        auto node = make_shared<ParseTreeNode>("Suite");
         
         // In a real Python parser, you would handle indentation here
         // For simplicity, we'll just parse a single statement
@@ -298,140 +527,218 @@ private:
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseExpression() {
-        return parseLogicalOr();
+    shared_ptr<ParseTreeNode> parseTest() {
+        return parseOrTest();
     }
 
-    shared_ptr<ParseTreeNode> parseLogicalOr() {
-        auto node = parseLogicalAnd();
+    shared_ptr<ParseTreeNode> parseOrTest() {
+        auto node = parseAndTest();
         
         while (match(KEYWORD, "or")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
+            auto opNode = make_shared<ParseTreeNode>("BinaryOp", consume().value);
             opNode->addChild(node);
-            opNode->addChild(parseLogicalAnd());
+            opNode->addChild(parseAndTest());
             node = opNode;
         }
         
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseLogicalAnd() {
-        auto node = parseEquality();
+    shared_ptr<ParseTreeNode> parseAndTest() {
+        auto node = parseNotTest();
         
         while (match(KEYWORD, "and")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
+            auto opNode = make_shared<ParseTreeNode>("BinaryOp", consume().value);
             opNode->addChild(node);
-            opNode->addChild(parseEquality());
+            opNode->addChild(parseNotTest());
             node = opNode;
         }
         
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseEquality() {
-        auto node = parseComparison();
-        
-        while (match(OPERATOR, "==") || match(OPERATOR, "!=")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
-            opNode->addChild(node);
-            opNode->addChild(parseComparison());
-            node = opNode;
+    shared_ptr<ParseTreeNode> parseNotTest() {
+        if (match(KEYWORD, "not")) {
+            auto node = make_shared<ParseTreeNode>("UnaryOp", consume().value);
+            node->addChild(parseNotTest());
+            return node;
         }
         
-        return node;
+        return parseComparison();
     }
 
     shared_ptr<ParseTreeNode> parseComparison() {
-        auto node = parseAdditive();
+        auto node = parseArithExpr();
         
-        while (match(OPERATOR, "<") || match(OPERATOR, ">") || 
-               match(OPERATOR, "<=") || match(OPERATOR, ">=")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
+        while (match(OPERATOR, "<") || match(OPERATOR, ">") || match(OPERATOR, "==") || 
+               match(OPERATOR, ">=") || match(OPERATOR, "<=") || match(OPERATOR, "!=")) {
+            auto opNode = make_shared<ParseTreeNode>("ComparisonOp", consume().value);
             opNode->addChild(node);
-            opNode->addChild(parseAdditive());
+            opNode->addChild(parseArithExpr());
             node = opNode;
         }
         
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseAdditive() {
-        auto node = parseMultiplicative();
+    shared_ptr<ParseTreeNode> parseArithExpr() {
+        auto node = parseTerm();
         
         while (match(OPERATOR, "+") || match(OPERATOR, "-")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
+            auto opNode = make_shared<ParseTreeNode>("BinaryOp", consume().value);
             opNode->addChild(node);
-            opNode->addChild(parseMultiplicative());
+            opNode->addChild(parseTerm());
             node = opNode;
         }
         
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseMultiplicative() {
-        auto node = parseUnary();
+    shared_ptr<ParseTreeNode> parseTerm() {
+        auto node = parseFactor();
         
-        while (match(OPERATOR, "*") || match(OPERATOR, "/") || match(OPERATOR, "%")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOperator", consume().value);
+        while (match(OPERATOR, "*") || match(OPERATOR, "/") || match(OPERATOR, "//")) {
+            auto opNode = make_shared<ParseTreeNode>("BinaryOp", consume().value);
             opNode->addChild(node);
-            opNode->addChild(parseUnary());
+            opNode->addChild(parseFactor());
             node = opNode;
         }
         
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseUnary() {
-        if (match(OPERATOR, "-") || match(OPERATOR, "+") || match(KEYWORD, "not")) {
-            auto opNode = make_shared<ParseTreeNode>("UnaryOperator", consume().value);
-            opNode->addChild(parseUnary());
-            return opNode;
+    shared_ptr<ParseTreeNode> parseFactor() {
+        if (match(OPERATOR, "+") || match(OPERATOR, "-") || match(OPERATOR, "~")) {
+            auto node = make_shared<ParseTreeNode>("UnaryOp", consume().value);
+            node->addChild(parseFactor());
+            return node;
         }
         
-        return parsePrimary();
+        return parseAtomExpr();
     }
 
-    shared_ptr<ParseTreeNode> parsePrimary() {
-        if (match(LITERAL)) {
-            return make_shared<ParseTreeNode>("Literal", consume().value);
-        } else if (match(IDENTIFIER)) {
-            auto idNode = make_shared<ParseTreeNode>("Identifier", consume().value);
+    shared_ptr<ParseTreeNode> parseAtomExpr() {
+        auto node = parseAtom();
+        
+        // Parse trailers (function calls, attribute access, etc.)
+        while (match(DELIMITER, "(")) {
+            auto callNode = make_shared<ParseTreeNode>("FunctionCall");
+            callNode->addChild(node);
             
-            // Check for function call
-            if (match(DELIMITER, "(")) {
-                auto callNode = make_shared<ParseTreeNode>("FunctionCall");
-                callNode->addChild(idNode);
+            // Parse arguments
+            consume(); // consume '('
+            auto argsNode = make_shared<ParseTreeNode>("Arguments");
+            
+            if (!match(DELIMITER, ")")) {
+                argsNode->addChild(parseTest());
                 
-                // Parse arguments
-                consume(); // consume '('
-                auto argsNode = make_shared<ParseTreeNode>("Arguments");
-                
-                if (!match(DELIMITER, ")")) {
-                    do {
-                        argsNode->addChild(parseExpression());
-                        if (match(DELIMITER, ",")) {
-                            consume();
-                        } else {
-                            break;
-                        }
-                    } while (true);
+                while (match(DELIMITER, ",")) {
+                    consume(); // consume ','
+                    if (match(DELIMITER, ")")) break; // Handle trailing comma
+                    argsNode->addChild(parseTest());
                 }
-                
-                callNode->addChild(argsNode);
-                expect(DELIMITER, ")", "Expected ')' after function arguments");
-                
-                return callNode;
             }
             
-            return idNode;
-        } else if (match(DELIMITER, "(")) {
+            callNode->addChild(argsNode);
+            expect(DELIMITER, ")", "Expected ')' after function arguments");
+            
+            node = callNode;
+        }
+        
+        return node;
+    }
+
+    shared_ptr<ParseTreeNode> parseAtom() {
+        if (match(DELIMITER, "(")) {
             consume(); // consume '('
-            auto expr = parseExpression();
-            expect(DELIMITER, ")", "Expected ')' after expression");
-            return expr;
+            
+            // Empty tuple
+            if (match(DELIMITER, ")")) {
+                consume();
+                return make_shared<ParseTreeNode>("Tuple", "()");
+            }
+            
+            // Parse expression or tuple
+            auto expr = parseTest();
+            
+            if (match(DELIMITER, ",")) {
+                // It's a tuple
+                auto tupleNode = make_shared<ParseTreeNode>("Tuple");
+                tupleNode->addChild(expr);
+                
+                while (match(DELIMITER, ",")) {
+                    consume(); // consume ','
+                    if (match(DELIMITER, ")")) break; // Handle trailing comma
+                    tupleNode->addChild(parseTest());
+                }
+                
+                expect(DELIMITER, ")", "Expected ')' after tuple elements");
+                return tupleNode;
+            } else {
+                // It's just a parenthesized expression
+                expect(DELIMITER, ")", "Expected ')' after expression");
+                return expr;
+            }
+        } else if (match(DELIMITER, "[")) {
+            // List
+            auto listNode = make_shared<ParseTreeNode>("List");
+            
+            consume(); // consume '['
+            if (!match(DELIMITER, "]")) {
+                listNode->addChild(parseTest());
+                
+                while (match(DELIMITER, ",")) {
+                    consume(); // consume ','
+                    if (match(DELIMITER, "]")) break; // Handle trailing comma
+                    listNode->addChild(parseTest());
+                }
+            }
+            
+            expect(DELIMITER, "]", "Expected ']' after list elements");
+            return listNode;
+        } else if (match(DELIMITER, "{")) {
+            // Dictionary
+            auto dictNode = make_shared<ParseTreeNode>("Dict");
+            
+            consume(); // consume '{'
+            if (!match(DELIMITER, "}")) {
+                // Parse key-value pair
+                auto key = parseTest();
+                expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                auto value = parseTest();
+                
+                auto pairNode = make_shared<ParseTreeNode>("KeyValuePair");
+                pairNode->addChild(key);
+                pairNode->addChild(value);
+                dictNode->addChild(pairNode);
+                
+                while (match(DELIMITER, ",")) {
+                    consume(); // consume ','
+                    if (match(DELIMITER, "}")) break; // Handle trailing comma
+                    
+                    // Parse key-value pair
+                    key = parseTest();
+                    expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                    value = parseTest();
+                    
+                    pairNode = make_shared<ParseTreeNode>("KeyValuePair");
+                    pairNode->addChild(key);
+                    pairNode->addChild(value);
+                    dictNode->addChild(pairNode);
+                }
+            }
+            
+            expect(DELIMITER, "}", "Expected '}' after dictionary elements");
+            return dictNode;
+        } else if (match(IDENTIFIER)) {
+            return make_shared<ParseTreeNode>("Identifier", consume().value);
+        } else if (match(LITERAL)) {
+            return make_shared<ParseTreeNode>("Literal", consume().value);
+        } else if (match(KEYWORD, "None") || match(KEYWORD, "True") || match(KEYWORD, "False")) {
+            return make_shared<ParseTreeNode>("Keyword", consume().value);
         } else {
             syntaxError("Expected expression");
-            return nullptr; // This line will never be reached due to exception
+            return nullptr; // This will never be reached due to the exception
         }
     }
 
@@ -455,26 +762,43 @@ public:
             cout << "No parse tree available." << endl;
         }
     }
+    
+    // Save parse tree to DOT file for visualization
+    bool saveTreeToDot(const string& filename) const {
+        if (!parseTree) {
+            cerr << "No parse tree available to save." << endl;
+            return false;
+        }
+        
+        ofstream dotFile(filename);
+        if (!dotFile) {
+            cerr << "Failed to open file: " << filename << endl;
+            return false;
+        }
+        
+        // Write DOT file header
+        dotFile << "digraph ParseTree {" << endl;
+        dotFile << "  node [shape=box, fontname=\"Arial\", fontsize=10];" << endl;
+        
+        // Generate DOT representation of the tree
+        int nodeId = 0;
+        parseTree->toDot(dotFile, nodeId);
+        
+        // Write DOT file footer
+        dotFile << "}" << endl;
+        
+        dotFile.close();
+        cout << "Parse tree saved to " << filename << endl;
+        return true;
+    }
 };
 
 int main() {
     // Example usage with a simple Python-like program
     vector<Token> tokens = {
-        {KEYWORD, "def", 1},
-        {IDENTIFIER, "add", 1},
-        {DELIMITER, "(", 1},
         {IDENTIFIER, "x", 1},
-        {DELIMITER, ",", 1},
-        {IDENTIFIER, "y", 1},
-        {DELIMITER, ")", 1},
-        {DELIMITER, ":", 1},
-        {IDENTIFIER, "result", 2},
-        {OPERATOR, "=", 2},
-        {IDENTIFIER, "x", 2},
-        {OPERATOR, "+", 2},
-        {IDENTIFIER, "y", 2},
-        {KEYWORD, "return", 3},
-        {IDENTIFIER, "result", 3}
+        {OPERATOR, "=", 1},
+        {LITERAL, "10", 1},
     };
 
     Parser parser(tokens);
@@ -483,6 +807,9 @@ int main() {
     if (parseTree) {
         cout << "Parsing successful! Parse tree:" << endl;
         parser.printParseTree();
+        
+        // Save the parse tree to a DOT file
+        parser.saveTreeToDot("tree.dot");
     }
 
     return 0;
