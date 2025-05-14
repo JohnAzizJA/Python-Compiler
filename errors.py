@@ -40,4 +40,7 @@ amount$ = 100  # $ is not valid in variable names
 
 # 12. Block Comment Handling Issues
 """This is a multiline comment
-that doesn't get closed properly
+that doesn't get closed properly"""
+
+# 13.
+X = 10 y=20  

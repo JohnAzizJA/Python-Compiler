@@ -3,13 +3,13 @@ digraph ParseTree {
   node0 [label="Program"];
   node1 [label="Assignment"];
   node2 [label="IdentifierList"];
-  node3 [label="Identifier: x"];
+  node3 [label="Identifier: numb1"];
   node2 -> node3;
   node1 -> node2;
   node4 [label="AssignOp: ="];
   node1 -> node4;
   node5 [label="ExpressionList"];
-  node6 [label="Literal: 10"];
+  node6 [label="Identifier: e"];
   node5 -> node6;
   node1 -> node5;
   node0 -> node1;

@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include "definitions.h"
-
+#include "lexer2.cpp"
 using namespace std;
 
 // Forward declaration of ParseTreeNode
@@ -794,12 +794,10 @@ public:
 };
 
 int main() {
-    // Example usage with a simple Python-like program
-    vector<Token> tokens = {
-        {IDENTIFIER, "x", 1},
-        {OPERATOR, "=", 1},
-        {LITERAL, "10", 1},
-    };
+    Lexer lexer;
+    lexer.parser("errors.py");
+    lexer.tokenizeLine(lexer.getcodelines());
+    vector<Token> tokens = lexer.getTokens();
 
     Parser parser(tokens);
     auto parseTree = parser.parse();

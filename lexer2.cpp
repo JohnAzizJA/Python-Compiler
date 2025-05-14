@@ -122,7 +122,7 @@ class Lexer {
                     cerr << "Error: Indentation error on line " << lineNumber << endl;
                     tokens.push_back({ERROR, "IndentationError", lineNumber});
                     continue;
-                } 
+                }
         
                 // Handle scope changes
                 if (indentation > previousIndentation) {
@@ -190,25 +190,19 @@ class Lexer {
                 if (regex_search(subCode, match, unterminatedStringRegex) && match.position() == 0) {
                     string strLiteral = match.str();
                     cerr << "Error: Unterminated string literal on line " << lineNumber << endl;
-                    tokens.push_back({ERROR, strLiteral, lineNumber});
-                    i += match.length();
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
 
                 if (regex_search(subCode, match, lhsNoRhsRegex)) {
                     string lhs = match[1]; // Extract the LHS variable name
                     cerr << "Error: Missing RHS for assignment to '" << lhs << "' on line " << lineNumber << endl;
-                    tokens.push_back({ERROR, "MissingRHS", lineNumber});
-                    i += match.length();
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
 
                 if (regex_search(subCode, match, invalidAttributeRegex) && subCode.find(':') == string::npos) {
                     string strLiteral = match.str();
                     cerr << "Error: Invalid attribute name with space on line " << lineNumber << endl;
-                    tokens.push_back({ERROR, strLiteral, lineNumber});
-                    i += match.length();
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
         
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
@@ -257,15 +251,11 @@ class Lexer {
                             string afterWord = code.substr(i + word.length());
                             if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
                                 cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
-                                tokens.push_back({ERROR, "ExpectedCondition", lineNumber});
-                                i += match.length();
-                                continue;
+                                exit(EXIT_FAILURE);
                             } 
                             else if (subCode.find(':') == string::npos) {
                                 cerr << "Error: Expected ':' after keyword '" << word << "' on line " << lineNumber << endl;
-                                tokens.push_back({ERROR, "ExpectedColon", lineNumber});
-                                i += match.length();
-                                continue;
+                                exit(EXIT_FAILURE);
                             }
                             CurrentScope = word + " line number " + to_string(lineNumber); 
                             scopeStack.push_back( word + " line number " + to_string(lineNumber));
@@ -313,6 +303,7 @@ class Lexer {
                                 if (type == "unknown") {
                                     cerr << "Error: Variable '" << rhs << "' used before declaration on line " << lineNumber << endl;
                                     tokens.push_back({ERROR, rhs, lineNumber});
+                                    exit(EXIT_FAILURE);
                                 }
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
                                 type = "int"; // Arithmetic expressions result in int
@@ -348,9 +339,7 @@ class Lexer {
                 if (regex_search(subCode, match, malformedNumberRegex) && match.position() == 0) {
                     string badNum = match.str();
                     cerr << "Error: Malformed number literal '" << badNum << "' on line " << lineNumber << endl;
-                    tokens.push_back({ERROR, badNum, lineNumber});
-                    i += match.length();
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
         
                 if (regex_search(subCode, match, numberRegex) && match.position() == 0) {
@@ -362,7 +351,7 @@ class Lexer {
                 // If no match, unrecognized token
                 cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
                 tokens.push_back({ERROR, string(1, code[i]), lineNumber});
-                i++;
+                exit(EXIT_FAILURE);
             }
         
             // Match function definitions
