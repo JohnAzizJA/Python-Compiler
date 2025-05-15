@@ -190,18 +190,22 @@ class Lexer {
                 if (regex_search(subCode, match, unterminatedStringRegex) && match.position() == 0) {
                     string strLiteral = match.str();
                     cerr << "Error: Unterminated string literal on line " << lineNumber << endl;
+                    printTables();
+
                     exit(EXIT_FAILURE);
                 }
 
                 if (regex_search(subCode, match, lhsNoRhsRegex)) {
                     string lhs = match[1]; // Extract the LHS variable name
                     cerr << "Error: Missing RHS for assignment to '" << lhs << "' on line " << lineNumber << endl;
+                    printTables();
                     exit(EXIT_FAILURE);
                 }
 
                 if (regex_search(subCode, match, invalidAttributeRegex) && subCode.find(':') == string::npos) {
                     string strLiteral = match.str();
                     cerr << "Error: Invalid attribute name with space on line " << lineNumber << endl;
+                    printTables();
                     exit(EXIT_FAILURE);
                 }
         
@@ -251,10 +255,14 @@ class Lexer {
                             string afterWord = code.substr(i + word.length());
                             if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
                                 cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
+                                printTables();
+
                                 exit(EXIT_FAILURE);
                             } 
                             else if (subCode.find(':') == string::npos) {
                                 cerr << "Error: Expected ':' after keyword '" << word << "' on line " << lineNumber << endl;
+                                printTables();
+
                                 exit(EXIT_FAILURE);
                             }
                             CurrentScope = word + " line number " + to_string(lineNumber); 
@@ -339,6 +347,7 @@ class Lexer {
                 if (regex_search(subCode, match, malformedNumberRegex) && match.position() == 0) {
                     string badNum = match.str();
                     cerr << "Error: Malformed number literal '" << badNum << "' on line " << lineNumber << endl;
+                    printTables();
                     exit(EXIT_FAILURE);
                 }
         
@@ -351,6 +360,8 @@ class Lexer {
                 // If no match, unrecognized token
                 cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
                 tokens.push_back({ERROR, string(1, code[i]), lineNumber});
+                printTables();
+
                 exit(EXIT_FAILURE);
             }
         
@@ -377,38 +388,40 @@ class Lexer {
         const vector<tuple<string, int, int>>& getcodelines() const {
             return CodeLines;
         }
+ void printTables() const {
+            cout << left << setw(8) << "Line"
+                 << setw(15) << "Type"
+                 << setw(20) << "Value" << endl;
+            cout << string(45, '-') << endl;
 
+            for (const auto& token : tokens) {
+                if (token.type == TokenType::ERROR) continue;
+                cout << left << setw(8) << token.line
+                     << setw(15) << tokenTypeToString(token.type)
+                     << setw(20) << token.value << endl;
+            }
+
+            cout << "\n--- Symbol Table ---\n";
+            cout << left << setw(6) << "ID"
+                 << setw(20) << "Name"
+                 << setw(15) << "Type"
+                 << setw(15) << "Scope" << endl;
+            cout << string(56, '-') << endl;
+            for (const auto& id : symbol_table) {
+                cout << left << setw(6) << id.ID
+                     << setw(20) << id.name
+                     << setw(15) << id.type
+                     << setw(15) << id.Scope << endl;
+            }
+        }
 };
 
 int main() {
     Lexer lexer;
     lexer.parser("errors.py");
     lexer.tokenizeLine(lexer.getcodelines());
+    lexer.printTables();
 
-    cout << left << setw(8) << "Line"
-         << setw(15) << "Type"
-         << setw(20) << "Value" << endl;
-    cout << string(45, '-') << endl;
-
-    for (const auto& token : lexer.getTokens()) {
-        cout << left << setw(8) << token.line
-             << setw(15) << tokenTypeToString(token.type)
-             << setw(20) << token.value << endl;
-    
-    }
-
-    cout << "\n--- Symbol Table ---\n";
-    cout << left << setw(6) << "ID"
-         << setw(20) << "Name"
-         << setw(15) << "Type"
-         << setw(15) << "Scope" << endl;
-         cout << string(56, '-') << endl;
-    for (const auto& id : lexer.getsymbols()) {
-        cout << left << setw(6) << id.ID
-             << setw(20) << id.name
-             << setw(15) << id.type
-             << setw(15) << id.Scope << endl;
-    }
 
     return 0;
 }
