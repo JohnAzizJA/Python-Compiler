@@ -117,22 +117,32 @@ class Lexer {
                     // If it's a single-line block comment, skip it
                     continue;
                 }
-                if (CurrentScope == "global" && indentation > 0) {
                 
+                if (CurrentScope == "global" && indentation > 0) {
                     cerr << "Error: Indentation error on line " << lineNumber << endl;
                     tokens.push_back({ERROR, "IndentationError", lineNumber});
                     continue;
                 }
         
-                // Handle scope changes
+                // Handle indentation changes and generate INDENT/DEDENT tokens
                 if (indentation > previousIndentation) {
+                    // Add INDENT token
+                    tokens.push_back({INDENT, to_string(indentation), lineNumber});
+                    
                     if (expectingIndentedBlock) {
                         scopeStack.push_back(CurrentScope);
                         expectingIndentedBlock = false;
                     }
                 } else if (indentation < previousIndentation) {
-                    if (!scopeStack.empty()) {
-                        scopeStack.pop_back();
+                    // Add DEDENT tokens - might need multiple if we're going back multiple levels
+                    int indentDiff = previousIndentation - indentation;
+                    int dedentCount = indentDiff / 4; // Assuming each indentation level is 4 spaces
+                    
+                    for (int i = 0; i < dedentCount; i++) {
+                        tokens.push_back({DEDENT, to_string(indentation), lineNumber});
+                        if (!scopeStack.empty()) {
+                            scopeStack.pop_back();
+                        }
                     }
                 }
                 previousIndentation = indentation;
@@ -343,6 +353,9 @@ class Lexer {
                 // Push the new function scope onto the stack
                 scopeStack.push_back(functionName);
                 CurrentScope = functionName; // Update the current scope
+                
+                // Set flag to expect an indented block after function definition
+                expectingIndentedBlock = true;
             }
         }
 
@@ -357,7 +370,8 @@ class Lexer {
         const vector<tuple<string, int, int>>& getcodelines() const {
             return CodeLines;
         }
- void printTables() const {
+        
+        void printTables() const {
             cout << left << setw(8) << "Line"
                  << setw(15) << "Type"
                  << setw(20) << "Value" << endl;
@@ -394,4 +408,3 @@ class Lexer {
 
 //     return 0;
 // }
-
