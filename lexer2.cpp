@@ -167,7 +167,6 @@ class Lexer {
             regex malformedNumberRegex(R"(\b\d+(\.\d+){2,}|\d+\.\d+\.\d+|[+-]?\d*\.?\d*[eE]$|[+-]?\d*\.?\d*[eE][+-]?$)");
             regex unterminatedStringRegex("\"[^\"]*$|'[^']*$");
             regex invalidAttributeRegex(R"(\b([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=)");
-            regex lhsNoRhsRegex(R"(^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*$)");
 
             smatch match;
         
@@ -195,12 +194,6 @@ class Lexer {
                     exit(EXIT_FAILURE);
                 }
 
-                if (regex_search(subCode, match, lhsNoRhsRegex)) {
-                    string lhs = match[1]; // Extract the LHS variable name
-                    cerr << "Error: Missing RHS for assignment to '" << lhs << "' on line " << lineNumber << endl;
-                    printTables();
-                    exit(EXIT_FAILURE);
-                }
 
                 if (regex_search(subCode, match, invalidAttributeRegex) && subCode.find(':') == string::npos) {
                     string strLiteral = match.str();
@@ -250,23 +243,8 @@ class Lexer {
         
                     if (keywords.find(word) != keywords.end()) {
                         if (word == "if" || word == "elif" || word == "while" || word == "for") {
-                            // Look ahead to see if there's no expression followings
-                            smatch lookahead;
-                            string afterWord = code.substr(i + word.length());
-                            if (regex_match(afterWord, regex(R"(^\s*(:|\s*$))"))) {
-                                cerr << "Error: Expected condition/expression after '" << word << "' on line " << lineNumber << endl;
-                                printTables();
-
-                                exit(EXIT_FAILURE);
-                            } 
-                            else if (subCode.find(':') == string::npos) {
-                                cerr << "Error: Expected ':' after keyword '" << word << "' on line " << lineNumber << endl;
-                                printTables();
-
-                                exit(EXIT_FAILURE);
-                            }
-                            CurrentScope = word + " line number " + to_string(lineNumber); 
-                            scopeStack.push_back( word + " line number " + to_string(lineNumber));
+                            CurrentScope = word + " line number " + to_string(lineNumber);
+                            scopeStack.push_back(word + " line number " + to_string(lineNumber));
                         }
                         else if (word == "else")
                         {
