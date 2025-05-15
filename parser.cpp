@@ -134,8 +134,8 @@ private:
             try {
                 node->addChild(parseStatement());
             } catch (const runtime_error& e) {
-                // Skip to the next statement after error
-                recoverFromError();
+                cerr << "Syntax Error " << e.what() << endl;
+                exit(EXIT_FAILURE);
             }
         }
         
@@ -832,6 +832,7 @@ int main() {
     Lexer lexer;
     lexer.parser("example.py");
     lexer.tokenizeLine(lexer.getcodelines());
+    lexer.printTables();
     vector<Token> tokens = lexer.getTokens();
 
     Parser parser(tokens);
