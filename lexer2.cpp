@@ -283,14 +283,6 @@ class Lexer {
                                 type = "string"; // Input function returns a string
                             } else if (regex_match(rhs, regex("^[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(.*\\)$"))) {
                                 type = "func return"; // Function call
-                            } else if (regex_match(rhs, regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
-                                // RHS is a variable, get its type from the symbol table
-                                type = getVariableType(rhs, CurrentScope);
-                                if (type == "unknown") {
-                                    cerr << "Error: Variable '" << rhs << "' used before declaration on line " << lineNumber << endl;
-                                    tokens.push_back({ERROR, rhs, lineNumber});
-                                    exit(EXIT_FAILURE);
-                                }
                             } else if (regex_match(rhs, regex("^[+-]?\\d+\\s*[+\\-*/]\\s*\\d+$"))) {
                                 type = "int"; // Arithmetic expressions result in int
                             } else if (regex_match(rhs, listRegex)) {
