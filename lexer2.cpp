@@ -338,7 +338,6 @@ class Lexer {
             // Match function definitions
             if (regex_search(code, match, functionDefRegex)) {
                 string functionName = match[1];
-                tokens.push_back({IDENTIFIER, functionName, lineNumber});
                 addToSymbolTable(functionName, "function", CurrentScope);
         
                 // Push the new function scope onto the stack
