@@ -206,10 +206,7 @@ private:
         // Parse condition
         node->addChild(parseTest());
         
-        // Parse ':'
-        expect(DELIMITER, ":", "Expected ':' after if condition");
-        
-        // Parse then-block
+        // Parse then-block (parseSuite handles ':')
         node->addChild(parseSuite());
         
         // Parse optional elif blocks
@@ -217,7 +214,6 @@ private:
             auto elifNode = make_shared<ParseTreeNode>("ElifClause");
             elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             elifNode->addChild(parseTest());
-            expect(DELIMITER, ":", "Expected ':' after elif condition");
             elifNode->addChild(parseSuite());
             node->addChild(elifNode);
         }
@@ -226,7 +222,6 @@ private:
         if (match(KEYWORD, "else")) {
             auto elseNode = make_shared<ParseTreeNode>("ElseClause");
             elseNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-            expect(DELIMITER, ":", "Expected ':' after 'else'");
             elseNode->addChild(parseSuite());
             node->addChild(elseNode);
         }
@@ -243,10 +238,7 @@ private:
         // Parse condition
         node->addChild(parseTest());
         
-        // Parse ':'
-        expect(DELIMITER, ":", "Expected ':' after while condition");
-        
-        // Parse body
+        // Parse body (parseSuite handles ':')
         node->addChild(parseSuite());
         
         return node;
@@ -268,10 +260,7 @@ private:
         // Parse iterable expression
         node->addChild(parseTest());
         
-        // Parse ':'
-        expect(DELIMITER, ":", "Expected ':' after for statement");
-        
-        // Parse body
+        // Parse body (parseSuite handles ':')
         node->addChild(parseSuite());
         
         return node;
@@ -305,10 +294,7 @@ private:
         node->addChild(paramsNode);
         expect(DELIMITER, ")", "Expected ')' after parameters");
         
-        // Parse ':'
-        expect(DELIMITER, ":", "Expected ':' after function declaration");
-        
-        // Parse function body
+        // Parse function body (parseSuite handles ':')
         node->addChild(parseSuite());
         
         return node;
@@ -330,10 +316,7 @@ private:
             expect(DELIMITER, ")", "Expected ')' after parent class name");
         }
         
-        // Parse ':'
-        expect(DELIMITER, ":", "Expected ':' after class declaration");
-        
-        // Parse class body
+        // Parse class body (parseSuite handles ':')
         node->addChild(parseSuite());
         
         return node;
@@ -534,13 +517,33 @@ private:
         return node;
     }
 
+    // Adjusted parseSuite to handle INDENT/DEDENT and block statements
     shared_ptr<ParseTreeNode> parseSuite() {
         auto node = make_shared<ParseTreeNode>("Suite");
-        
-        // In a real Python parser, you would handle indentation here
-        // For simplicity, we'll just parse a single statement
-        node->addChild(parseStatement());
-        
+
+        // Parse ':' (handled here, so remove expect(':', ...) from callers)
+        expect(DELIMITER, ":", "Expected ':' before suite");
+
+        // Handle INDENT for block
+        if (match(INDENT)) {
+            consume(); // consume INDENT
+
+            // Parse multiple statements until DEDENT
+            while (!match(DEDENT) && currentPos < tokens.size()) {
+                node->addChild(parseStatement());
+            }
+        // Accept DEDENT or EOF as valid end of block
+        if (match(DEDENT)) {
+            consume(); // consume DEDENT
+        } else if (currentPos >= tokens.size()) {
+            // Allow EOF as a valid end of block
+        } else {
+            syntaxError("Expected DEDENT at end of block");
+        }        } else {
+            // Simple statement after ':'
+            node->addChild(parseStatement());
+        }
+
         return node;
     }
 

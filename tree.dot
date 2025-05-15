@@ -33,8 +33,6 @@ digraph ParseTree {
   node12 -> node13;
   node8 -> node12;
   node7 -> node8;
-  node1 -> node7;
-  node0 -> node1;
   node18 [label="Assignment"];
   node19 [label="IdentifierList"];
   node20 [label="Identifier: word"];
@@ -54,21 +52,23 @@ digraph ParseTree {
   node23 -> node27;
   node22 -> node23;
   node18 -> node22;
-  node0 -> node18;
+  node7 -> node18;
   node28 [label="ReturnStatement"];
   node29 [label="Keyword: return"];
   node28 -> node29;
   node30 [label="Identifier: word"];
   node28 -> node30;
-  node0 -> node28;
+  node7 -> node28;
   node31 [label="ExpressionStatement"];
   node32 [label="Identifier: in"];
   node31 -> node32;
-  node0 -> node31;
+  node7 -> node31;
   node33 [label="ExpressionStatement"];
   node34 [label="Identifier: text"];
   node33 -> node34;
-  node0 -> node33;
+  node7 -> node33;
+  node1 -> node7;
+  node0 -> node1;
   node35 [label="Assignment"];
   node36 [label="IdentifierList"];
   node37 [label="Identifier: x"];
@@ -131,8 +131,6 @@ digraph ParseTree {
   node65 -> node66;
   node63 -> node65;
   node62 -> node63;
-  node58 -> node62;
-  node0 -> node58;
   node67 [label="Assignment"];
   node68 [label="IdentifierList"];
   node69 [label="Identifier: text"];
@@ -150,7 +148,7 @@ digraph ParseTree {
   node72 -> node74;
   node71 -> node72;
   node67 -> node71;
-  node0 -> node67;
+  node62 -> node67;
   node76 [label="Assignment"];
   node77 [label="IdentifierList"];
   node78 [label="Identifier: word"];
@@ -168,7 +166,7 @@ digraph ParseTree {
   node81 -> node83;
   node80 -> node81;
   node76 -> node80;
-  node0 -> node76;
+  node62 -> node76;
   node85 [label="Assignment"];
   node86 [label="IdentifierList"];
   node87 [label="Identifier: value"];
@@ -180,7 +178,7 @@ digraph ParseTree {
   node90 [label="Literal: 88"];
   node89 -> node90;
   node85 -> node89;
-  node0 -> node85;
+  node62 -> node85;
   node91 [label="Assignment"];
   node92 [label="IdentifierList"];
   node93 [label="Identifier: min"];
@@ -198,7 +196,7 @@ digraph ParseTree {
   node96 -> node99;
   node95 -> node96;
   node91 -> node95;
-  node0 -> node91;
+  node62 -> node91;
   node100 [label="Assignment"];
   node101 [label="IdentifierList"];
   node102 [label="Identifier: value2"];
@@ -210,7 +208,7 @@ digraph ParseTree {
   node105 [label="Literal: 99.99"];
   node104 -> node105;
   node100 -> node104;
-  node0 -> node100;
+  node62 -> node100;
   node106 [label="Assignment"];
   node107 [label="IdentifierList"];
   node108 [label="Identifier: hexadecimal"];
@@ -222,7 +220,7 @@ digraph ParseTree {
   node111 [label="Literal: 0x0FAD"];
   node110 -> node111;
   node106 -> node110;
-  node0 -> node106;
+  node62 -> node106;
   node112 [label="Assignment"];
   node113 [label="IdentifierList"];
   node114 [label="Identifier: expo"];
@@ -234,7 +232,7 @@ digraph ParseTree {
   node117 [label="Literal: 3.33e10"];
   node116 -> node117;
   node112 -> node116;
-  node0 -> node112;
+  node62 -> node112;
   node118 [label="Assignment"];
   node119 [label="IdentifierList"];
   node120 [label="Identifier: result"];
@@ -254,7 +252,7 @@ digraph ParseTree {
   node123 -> node125;
   node122 -> node123;
   node118 -> node122;
-  node0 -> node118;
+  node62 -> node118;
   node128 [label="Assignment"];
   node129 [label="IdentifierList"];
   node130 [label="Identifier: ll"];
@@ -278,7 +276,7 @@ digraph ParseTree {
   node133 -> node139;
   node132 -> node133;
   node128 -> node132;
-  node0 -> node128;
+  node62 -> node128;
   node140 [label="Assignment"];
   node141 [label="IdentifierList"];
   node142 [label="Identifier: tt"];
@@ -294,7 +292,7 @@ digraph ParseTree {
   node145 -> node147;
   node144 -> node145;
   node140 -> node144;
-  node0 -> node140;
+  node62 -> node140;
   node148 [label="Assignment"];
   node149 [label="IdentifierList"];
   node150 [label="Identifier: ss"];
@@ -306,7 +304,7 @@ digraph ParseTree {
   node153 [label="Literal: \"string\""];
   node152 -> node153;
   node148 -> node152;
-  node0 -> node148;
+  node62 -> node148;
   node154 [label="FunctionCallStatement"];
   node155 [label="Identifier: print"];
   node154 -> node155;
@@ -314,7 +312,7 @@ digraph ParseTree {
   node157 [label="Identifier: value"];
   node156 -> node157;
   node154 -> node156;
-  node0 -> node154;
+  node62 -> node154;
   node158 [label="FunctionCallStatement"];
   node159 [label="Identifier: print"];
   node158 -> node159;
@@ -326,7 +324,7 @@ digraph ParseTree {
   node161 -> node163;
   node160 -> node161;
   node158 -> node160;
-  node0 -> node158;
+  node62 -> node158;
   node164 [label="FunctionCallStatement"];
   node165 [label="Identifier: print"];
   node164 -> node165;
@@ -334,7 +332,7 @@ digraph ParseTree {
   node167 [label="Identifier: value2"];
   node166 -> node167;
   node164 -> node166;
-  node0 -> node164;
+  node62 -> node164;
   node168 [label="FunctionCallStatement"];
   node169 [label="Identifier: print"];
   node168 -> node169;
@@ -342,7 +340,7 @@ digraph ParseTree {
   node171 [label="Identifier: hexadecimal"];
   node170 -> node171;
   node168 -> node170;
-  node0 -> node168;
+  node62 -> node168;
   node172 [label="FunctionCallStatement"];
   node173 [label="Identifier: print"];
   node172 -> node173;
@@ -350,7 +348,7 @@ digraph ParseTree {
   node175 [label="Identifier: expo"];
   node174 -> node175;
   node172 -> node174;
-  node0 -> node172;
+  node62 -> node172;
   node176 [label="IfStatement"];
   node177 [label="Keyword: if"];
   node176 -> node177;
@@ -380,7 +378,9 @@ digraph ParseTree {
   node186 -> node187;
   node184 -> node186;
   node176 -> node184;
-  node0 -> node176;
+  node62 -> node176;
+  node58 -> node62;
+  node0 -> node58;
   node191 [label="IfStatement"];
   node192 [label="Keyword: if"];
   node191 -> node192;
@@ -397,8 +397,6 @@ digraph ParseTree {
   node199 [label="Arguments"];
   node197 -> node199;
   node196 -> node197;
-  node191 -> node196;
-  node0 -> node191;
   node200 [label="Assignment"];
   node201 [label="IdentifierList"];
   node202 [label="Identifier: x"];
@@ -410,5 +408,7 @@ digraph ParseTree {
   node205 [label="Literal: \"123\""];
   node204 -> node205;
   node200 -> node204;
-  node0 -> node200;
+  node196 -> node200;
+  node191 -> node196;
+  node0 -> node191;
 }
