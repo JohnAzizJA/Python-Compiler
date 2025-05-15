@@ -443,7 +443,24 @@ private:
         
         // Parse identifier list (target)
         auto targetNode = make_shared<ParseTreeNode>("IdentifierList");
-        targetNode->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected identifier").value));
+        
+        // Check if the target is a simple identifier or an attribute access
+        if (match(IDENTIFIER)) {
+            size_t savedPos = currentPos;
+            string name = consume().value;
+            
+            if (match(DELIMITER, ".")) {
+                // It's an attribute access
+                currentPos = savedPos;
+                targetNode->addChild(parseAtomExpr());
+            } else {
+                // It's a simple identifier
+                currentPos = savedPos;
+                targetNode->addChild(make_shared<ParseTreeNode>("Identifier", consume().value));
+            }
+        } else {
+            syntaxError("Expected identifier or attribute access");
+        }
         
         while (match(DELIMITER, ",")) {
             consume(); // consume ','
@@ -621,28 +638,46 @@ private:
         auto node = parseAtom();
         
         // Parse trailers (function calls, attribute access, etc.)
-        while (match(DELIMITER, "(")) {
-            auto callNode = make_shared<ParseTreeNode>("FunctionCall");
-            callNode->addChild(node);
-            
-            // Parse arguments
-            consume(); // consume '('
-            auto argsNode = make_shared<ParseTreeNode>("Arguments");
-            
-            if (!match(DELIMITER, ")")) {
-                argsNode->addChild(parseTest());
+        while (match(DELIMITER, "(") || match(DELIMITER, ".")) {
+            if (match(DELIMITER, "(")) {
+                auto callNode = make_shared<ParseTreeNode>("FunctionCall");
+                callNode->addChild(node);
                 
-                while (match(DELIMITER, ",")) {
-                    consume(); // consume ','
-                    if (match(DELIMITER, ")")) break; // Handle trailing comma
+                // Parse arguments
+                consume(); // consume '('
+                auto argsNode = make_shared<ParseTreeNode>("Arguments");
+                
+                if (!match(DELIMITER, ")")) {
                     argsNode->addChild(parseTest());
+                    
+                    while (match(DELIMITER, ",")) {
+                        consume(); // consume ','
+                        if (match(DELIMITER, ")")) break; // Handle trailing comma
+                        argsNode->addChild(parseTest());
+                    }
                 }
+                
+                callNode->addChild(argsNode);
+                expect(DELIMITER, ")", "Expected ')' after function arguments");
+                
+                node = callNode;
+            } else if (match(DELIMITER, ".")) {
+                // Handle attribute access (method calls)
+                consume(); // consume '.'
+                
+                // Parse attribute name
+                auto attrNode = make_shared<ParseTreeNode>("AttributeAccess");
+                attrNode->addChild(node); // The object
+                
+                // Get the attribute name
+                if (match(IDENTIFIER)) {
+                    attrNode->addChild(make_shared<ParseTreeNode>("Identifier", consume().value));
+                } else {
+                    syntaxError("Expected attribute name after '.'");
+                }
+                
+                node = attrNode;
             }
-            
-            callNode->addChild(argsNode);
-            expect(DELIMITER, ")", "Expected ')' after function arguments");
-            
-            node = callNode;
         }
         
         return node;
@@ -795,7 +830,7 @@ public:
 
 int main() {
     Lexer lexer;
-    lexer.parser("errors.py");
+    lexer.parser("example.py");
     lexer.tokenizeLine(lexer.getcodelines());
     vector<Token> tokens = lexer.getTokens();
 

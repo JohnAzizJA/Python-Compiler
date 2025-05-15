@@ -386,13 +386,13 @@ class Lexer {
         }
 };
 
-int main() {
-    Lexer lexer;
-    lexer.parser("errors.py");
-    lexer.tokenizeLine(lexer.getcodelines());
-    lexer.printTables();
+// int main() {
+//     Lexer lexer;
+//     lexer.parser("errors.py");
+//     lexer.tokenizeLine(lexer.getcodelines());
+//     lexer.printTables();
 
 
-    return 0;
-}
+//     return 0;
+// }
 
