@@ -944,7 +944,7 @@ int main() {
     lexer.parser("errors.py");
     try
     {
-    lexer.tokenizeLine(lexer.getcodelines());
+        lexer.tokenizeLine(lexer.getcodelines());
     }
     catch(const std::exception& e)
     {
