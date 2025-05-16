@@ -532,14 +532,15 @@ private:
             while (!match(DEDENT) && currentPos < tokens.size()) {
                 node->addChild(parseStatement());
             }
-        // Accept DEDENT or EOF as valid end of block
-        if (match(DEDENT)) {
-            consume(); // consume DEDENT
-        } else if (currentPos >= tokens.size()) {
-            // Allow EOF as a valid end of block
+            // Accept DEDENT or EOF as valid end of block
+            if (match(DEDENT)) {
+                consume(); // consume DEDENT
+            } else if (currentPos >= tokens.size()) {
+                // Allow EOF as a valid end of block
+            } else {
+                syntaxError("Expected DEDENT at end of block");
+            }        
         } else {
-            syntaxError("Expected DEDENT at end of block");
-        }        } else {
             // Simple statement after ':'
             node->addChild(parseStatement());
         }
