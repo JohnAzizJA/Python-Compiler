@@ -176,8 +176,7 @@ class Lexer {
                 
                 if (CurrentScope == "global" && indentation > 0 && !expectingIndentedBlock) {
                     cerr << "Error: Indentation error on line " << lineNumber << endl;
-                    tokens.push_back({ERROR, "IndentationError", lineNumber});
-                    continue;
+                    throw runtime_error("Indentation error");
                 }
         
                 // Handle indentation changes and generate INDENT/DEDENT tokens

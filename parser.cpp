@@ -848,35 +848,52 @@ private:
             // Dictionary
             auto dictNode = make_shared<ParseTreeNode>("Dict");
             
-            consume(); // consume '{'
+            // Add opening brace to parse tree
+            Token openBrace = consume();
+            dictNode->addChild(make_shared<ParseTreeNode>("Delimiter", openBrace.value));
+            
             if (!match(DELIMITER, "}")) {
                 // Parse key-value pair
                 auto key = parseTest();
-                expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                
+                // Add colon to parse tree
+                Token colon = expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                
                 auto value = parseTest();
                 
                 auto pairNode = make_shared<ParseTreeNode>("KeyValuePair");
                 pairNode->addChild(key);
+                pairNode->addChild(make_shared<ParseTreeNode>("Delimiter", colon.value));
                 pairNode->addChild(value);
                 dictNode->addChild(pairNode);
                 
                 while (match(DELIMITER, ",")) {
-                    consume(); // consume ','
+                    // Add comma to parse tree
+                    Token comma = consume();
+                    dictNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
+                    
                     if (match(DELIMITER, "}")) break; // Handle trailing comma
                     
                     // Parse key-value pair
                     key = parseTest();
-                    expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                    
+                    // Add colon to parse tree
+                    colon = expect(DELIMITER, ":", "Expected ':' after dictionary key");
+                    
                     value = parseTest();
                     
                     pairNode = make_shared<ParseTreeNode>("KeyValuePair");
                     pairNode->addChild(key);
+                    pairNode->addChild(make_shared<ParseTreeNode>("Delimiter", colon.value));
                     pairNode->addChild(value);
                     dictNode->addChild(pairNode);
                 }
             }
             
-            expect(DELIMITER, "}", "Expected '}' after dictionary elements");
+            // Add closing brace to parse tree
+            Token closeBrace = expect(DELIMITER, "}", "Expected '}' after dictionary elements");
+            dictNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeBrace.value));
+            
             return dictNode;
         } else if (match(IDENTIFIER)) {
             return make_shared<ParseTreeNode>("Identifier", consume().value);

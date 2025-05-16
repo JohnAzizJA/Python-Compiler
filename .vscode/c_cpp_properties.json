@@ -3,14 +3,13 @@
         {
             "name": "Win32",
             "includePath":  [
-                "${workspaceFolder}/**",  // Existing workspace include paths
+                "${workspaceFolder}/**", 
                 "${workspaceFolder}/glad/include",
                 "${workspaceFolder}/glad/include/glad",
                 "${workspaceFolder}/glad/include/KHR",
-                "C:/msys64/mingw64/include",  // MinGW include path
-                "C:/Users/nohas/Desktop/sem6/Python-Compiler/glad/include",  // Glad include path
-                "C:/Users/nohas/Desktop/sem6/Python-Compiler/imgui",  // ImGui include path
-                "C:/glfw-3.4.bin.WIN64/include/GLFW",  // GLFW include path
+                "D:\\Msys\\mingw64\\include",  
+                "C:\\Users\\Michael Maged\\Desktop\\Pcompiler\\Python-Compiler\\glad\\include", 
+                "C:\\Users\\Michael Maged\\Desktop\\Pcompiler\\Python-Compiler\\imgui",  
                 "${workspaceFolder}/imgui" 
             ],
             "defines": [
@@ -19,7 +18,7 @@
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.22621.0",
-            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
+            "compilerPath": "D:\\Msys\\mingw64\\bin\\g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"
