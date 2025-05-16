@@ -6,6 +6,8 @@ class Car:
     def display(self):
         print(f"name: {self.name}")
 
+list = [1, 2, 3, 4, 5]
+tuple = (1, 2, 3, 4, 5)
 def add(x, y):
     result = x + y
     print("The sum is:", result)

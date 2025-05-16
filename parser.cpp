@@ -301,37 +301,34 @@ private:
         auto node = make_shared<ParseTreeNode>("FunctionDefinition");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected function name after 'def'").value));
-        
-        // Add opening parenthesis to parse tree
+
+        // Add opening parenthesis node
         Token openParen = expect(DELIMITER, "(", "Expected '(' after function name");
         node->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
-        
-        auto paramsNode = make_shared<ParseTreeNode>("Parameters");
 
+        auto paramsNode = make_shared<ParseTreeNode>("Parameters");
         if (!match(DELIMITER, ")")) {
             do {
                 paramsNode->addChild(make_shared<ParseTreeNode>("Parameter", expect(IDENTIFIER, "Expected parameter name").value));
                 if (match(DELIMITER, ",")) {
-                    // Add comma to parse tree
                     Token comma = consume();
                     paramsNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
-                    if (match(DELIMITER, ")")) break; // Handle trailing comma
+                    if (match(DELIMITER, ")")) break;
                 } else {
                     break;
                 }
             } while (true);
         }
-
         node->addChild(paramsNode);
-        
-        // Add closing parenthesis to parse tree
+
+        // Add closing parenthesis node
         Token closeParen = expect(DELIMITER, ")", "Expected ')' after parameters");
         node->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
-        
-        // Add colon to parse tree
+
+        // Add colon node
         Token colon = expect(DELIMITER, ":", "Expected ':' after function declaration");
         node->addChild(make_shared<ParseTreeNode>("Delimiter", colon.value));
-        
+
         node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
@@ -751,51 +748,58 @@ private:
 
     shared_ptr<ParseTreeNode> parseAtom() {
         if (match(DELIMITER, "(")) {
-            consume(); // consume '('
-            
+            Token openParen = consume();
             // Empty tuple
             if (match(DELIMITER, ")")) {
-                consume();
-                return make_shared<ParseTreeNode>("Tuple", "()");
-            }
-            
-            // Parse expression or tuple
-            auto expr = parseTest();
-            
-            if (match(DELIMITER, ",")) {
-                // It's a tuple
+                Token closeParen = consume();
                 auto tupleNode = make_shared<ParseTreeNode>("Tuple");
+                tupleNode->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
+                tupleNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
+                return tupleNode;
+            }
+            auto expr = parseTest();
+            if (match(DELIMITER, ",")) {
+                auto tupleNode = make_shared<ParseTreeNode>("Tuple");
+                tupleNode->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
                 tupleNode->addChild(expr);
-                
                 while (match(DELIMITER, ",")) {
-                    consume(); // consume ','
-                    if (match(DELIMITER, ")")) break; // Handle trailing comma
+                    Token comma = consume();
+                    tupleNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
+                    if (match(DELIMITER, ")")) break;
                     tupleNode->addChild(parseTest());
                 }
-                
-                expect(DELIMITER, ")", "Expected ')' after tuple elements");
+                Token closeParen = expect(DELIMITER, ")", "Expected ')' after tuple elements");
+                tupleNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
                 return tupleNode;
             } else {
-                // It's just a parenthesized expression
-                expect(DELIMITER, ")", "Expected ')' after expression");
-                return expr;
+                Token closeParen = expect(DELIMITER, ")", "Expected ')' after expression");
+                auto exprNode = make_shared<ParseTreeNode>("ParenExpr");
+                exprNode->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
+                exprNode->addChild(expr);
+                exprNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
+                return exprNode;
             }
         } else if (match(DELIMITER, "[")) {
-            // List
             auto listNode = make_shared<ParseTreeNode>("List");
-            
-            consume(); // consume '['
+
+            // Add opening bracket node
+            Token openBracket = consume();
+            listNode->addChild(make_shared<ParseTreeNode>("Delimiter", openBracket.value));
+
             if (!match(DELIMITER, "]")) {
                 listNode->addChild(parseTest());
-                
                 while (match(DELIMITER, ",")) {
-                    consume(); // consume ','
-                    if (match(DELIMITER, "]")) break; // Handle trailing comma
+                    Token comma = consume();
+                    listNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
+                    if (match(DELIMITER, "]")) break;
                     listNode->addChild(parseTest());
                 }
             }
-            
-            expect(DELIMITER, "]", "Expected ']' after list elements");
+
+            // Add closing bracket node
+            Token closeBracket = expect(DELIMITER, "]", "Expected ']' after list elements");
+            listNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeBracket.value));
+
             return listNode;
         } else if (match(DELIMITER, "{")) {
             // Dictionary
