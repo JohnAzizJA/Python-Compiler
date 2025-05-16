@@ -959,6 +959,14 @@ int main() {
         
         // Save the parse tree to a DOT file
         parser.saveTreeToDot("tree.dot");
+
+        // Generate PNG image from DOT file using Graphviz
+        int result = system("clear");
+        if (result == 0) {
+            cout << "Parse tree image saved as tree.png" << endl;
+        } else {
+            cerr << "Failed to generate tree.png. Make sure Graphviz is installed and 'dot' is in your PATH." << endl;
+        }
     }
 
     return 0;

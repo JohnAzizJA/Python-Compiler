@@ -137,6 +137,11 @@ class Lexer {
                 if (currentLine.empty() || all_of(currentLine.begin(), currentLine.end(), [](unsigned char ch) { return isspace(ch); })) {
                     continue; // Skip empty lines
                 }
+                        // --- ADD THIS BLOCK ---
+                if (indentation % 4 != 0) {
+                    cerr << "Error: Indentation error on line " << lineNumber << " (not a multiple of 4 spaces)" << endl;
+                    throw runtime_error("Indentation error");
+                }
         
                 // Handle ongoing block comments
                 if (inBlockComment) {
