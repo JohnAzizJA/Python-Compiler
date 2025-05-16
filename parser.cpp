@@ -296,18 +296,25 @@ private:
         return node;
     }
 
+    // Modified parseFunctionDef method to include parentheses and colon
     shared_ptr<ParseTreeNode> parseFunctionDef() {
         auto node = make_shared<ParseTreeNode>("FunctionDefinition");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected function name after 'def'").value));
-        expect(DELIMITER, "(", "Expected '(' after function name");
+        
+        // Add opening parenthesis to parse tree
+        Token openParen = expect(DELIMITER, "(", "Expected '(' after function name");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
+        
         auto paramsNode = make_shared<ParseTreeNode>("Parameters");
 
         if (!match(DELIMITER, ")")) {
             do {
                 paramsNode->addChild(make_shared<ParseTreeNode>("Parameter", expect(IDENTIFIER, "Expected parameter name").value));
                 if (match(DELIMITER, ",")) {
-                    consume();
+                    // Add comma to parse tree
+                    Token comma = consume();
+                    paramsNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
                     if (match(DELIMITER, ")")) break; // Handle trailing comma
                 } else {
                     break;
@@ -316,8 +323,15 @@ private:
         }
 
         node->addChild(paramsNode);
-        expect(DELIMITER, ")", "Expected ')' after parameters");
-        expect(DELIMITER, ":", "Expected ':' after function declaration");
+        
+        // Add closing parenthesis to parse tree
+        Token closeParen = expect(DELIMITER, ")", "Expected ')' after parameters");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
+        
+        // Add colon to parse tree
+        Token colon = expect(DELIMITER, ":", "Expected ':' after function declaration");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", colon.value));
+        
         node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
@@ -326,12 +340,23 @@ private:
         auto node = make_shared<ParseTreeNode>("ClassDefinition");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected class name after 'class'").value));
+        
         if (match(DELIMITER, "(")) {
-            consume(); // consume '('
+            // Add opening parenthesis to parse tree
+            Token openParen = consume();
+            node->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
+            
             node->addChild(make_shared<ParseTreeNode>("Parent", expect(IDENTIFIER, "Expected parent class name").value));
-            expect(DELIMITER, ")", "Expected ')' after parent class name");
+            
+            // Add closing parenthesis to parse tree
+            Token closeParen = expect(DELIMITER, ")", "Expected ')' after parent class name");
+            node->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
         }
-        expect(DELIMITER, ":", "Expected ':' after class declaration");
+        
+        // Add colon to parse tree
+        Token colon = expect(DELIMITER, ":", "Expected ':' after class declaration");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", colon.value));
+        
         node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
@@ -420,6 +445,7 @@ private:
         return node;
     }
 
+    // Modified parseDottedName method to include dots
     shared_ptr<ParseTreeNode> parseDottedName() {
         auto node = make_shared<ParseTreeNode>("DottedName");
         
@@ -428,7 +454,10 @@ private:
         
         // Parse additional parts
         while (match(DELIMITER, ".")) {
-            consume(); // consume '.'
+            // Add dot to parse tree
+            Token dot = consume();
+            node->addChild(make_shared<ParseTreeNode>("Delimiter", dot.value));
+            
             node->addChild(make_shared<ParseTreeNode>("NamePart", expect(IDENTIFIER, "Expected identifier after '.'").value));
         }
         
@@ -484,6 +513,7 @@ private:
         return node;
     }
 
+    // Modified parseFunctionCallStatement method to include parentheses and commas
     shared_ptr<ParseTreeNode> parseFunctionCallStatement() {
         auto node = make_shared<ParseTreeNode>("FunctionCallStatement");
         
@@ -505,22 +535,29 @@ private:
             syntaxError("Expected function name");
         }
         
-        // Parse arguments
-        expect(DELIMITER, "(", "Expected '(' after function name");
+        // Add opening parenthesis to parse tree
+        Token openParen = expect(DELIMITER, "(", "Expected '(' after function name");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
         
         auto argsNode = make_shared<ParseTreeNode>("Arguments");
         if (!match(DELIMITER, ")")) {
             argsNode->addChild(parseTest());
             
             while (match(DELIMITER, ",")) {
-                consume(); // consume ','
+                // Add comma to parse tree
+                Token comma = consume();
+                argsNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
+                
                 if (match(DELIMITER, ")")) break; // Handle trailing comma
                 argsNode->addChild(parseTest());
             }
         }
         
         node->addChild(argsNode);
-        expect(DELIMITER, ")", "Expected ')' after function arguments");
+        
+        // Add closing parenthesis to parse tree
+        Token closeParen = expect(DELIMITER, ")", "Expected ')' after function arguments");
+        node->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
         
         return node;
     }
@@ -652,6 +689,7 @@ private:
         return parseAtomExpr();
     }
 
+    // Modified parseAtomExpr method to include parentheses and dots
     shared_ptr<ParseTreeNode> parseAtomExpr() {
         auto node = parseAtom();
         
@@ -661,31 +699,41 @@ private:
                 auto callNode = make_shared<ParseTreeNode>("FunctionCall");
                 callNode->addChild(node);
                 
-                // Parse arguments
-                consume(); // consume '('
+                // Add opening parenthesis to parse tree
+                Token openParen = consume();
+                callNode->addChild(make_shared<ParseTreeNode>("Delimiter", openParen.value));
+                
                 auto argsNode = make_shared<ParseTreeNode>("Arguments");
                 
                 if (!match(DELIMITER, ")")) {
                     argsNode->addChild(parseTest());
                     
                     while (match(DELIMITER, ",")) {
-                        consume(); // consume ','
+                        // Add comma to parse tree
+                        Token comma = consume();
+                        argsNode->addChild(make_shared<ParseTreeNode>("Delimiter", comma.value));
+                        
                         if (match(DELIMITER, ")")) break; // Handle trailing comma
                         argsNode->addChild(parseTest());
                     }
                 }
                 
                 callNode->addChild(argsNode);
-                expect(DELIMITER, ")", "Expected ')' after function arguments");
+                
+                // Add closing parenthesis to parse tree
+                Token closeParen = expect(DELIMITER, ")", "Expected ')' after function arguments");
+                callNode->addChild(make_shared<ParseTreeNode>("Delimiter", closeParen.value));
                 
                 node = callNode;
             } else if (match(DELIMITER, ".")) {
                 // Handle attribute access (method calls)
-                consume(); // consume '.'
+                // Add dot to parse tree
+                Token dot = consume();
                 
                 // Parse attribute name
                 auto attrNode = make_shared<ParseTreeNode>("AttributeAccess");
                 attrNode->addChild(node); // The object
+                attrNode->addChild(make_shared<ParseTreeNode>("Delimiter", dot.value)); // The dot
                 
                 // Get the attribute name
                 if (match(IDENTIFIER)) {
