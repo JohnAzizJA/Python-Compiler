@@ -82,7 +82,7 @@ private:
         int line = currentPos < tokens.size() ? tokens[currentPos].line : -1;
         string tokenValue = currentPos < tokens.size() ? tokens[currentPos].value : "EOF";
         
-        cerr << "Syntax Error at line " << line << "near '" << tokenValue << "': " << message << endl;
+        cerr << "Syntax Error at line " << line << " near '" << tokenValue << "': " << message << endl;
         throw runtime_error("Syntax Error: " + message);
     }
 
@@ -281,7 +281,6 @@ private:
         return node;
     }
 
-
     shared_ptr<ParseTreeNode> parseWhileStatement() {
         auto node = make_shared<ParseTreeNode>("WhileStatement");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
@@ -303,7 +302,6 @@ private:
         return node;
     }
 
-    // Modified parseFunctionDef method to include parentheses and colon
     shared_ptr<ParseTreeNode> parseFunctionDef() {
         auto node = make_shared<ParseTreeNode>("FunctionDefinition");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
@@ -449,7 +447,6 @@ private:
         return node;
     }
 
-    // Modified parseDottedName method to include dots
     shared_ptr<ParseTreeNode> parseDottedName() {
         auto node = make_shared<ParseTreeNode>("DottedName");
         
@@ -504,7 +501,6 @@ private:
         node->addChild(make_shared<ParseTreeNode>("AssignOp", op));
         
         // Parse expression list (value)
-        // If you want to support tuple unpacking, keep ExpressionList only if there are commas:
         auto firstExpr = parseTest();
         if (match(DELIMITER, ",")) {
             auto valueNode = make_shared<ParseTreeNode>("ExpressionList");
@@ -521,7 +517,6 @@ private:
         return node;
     }
 
-    // Modified parseFunctionCallStatement method to include parentheses and commas
     shared_ptr<ParseTreeNode> parseFunctionCallStatement() {
         auto node = make_shared<ParseTreeNode>("FunctionCallStatement");
         
@@ -941,7 +936,7 @@ public:
 
 int main() {
     Lexer lexer;
-    lexer.parser("errors.py");
+    lexer.parser("example.py");
     try
     {
         lexer.tokenizeLine(lexer.getcodelines());
