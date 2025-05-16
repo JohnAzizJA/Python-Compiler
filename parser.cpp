@@ -82,7 +82,7 @@ private:
         int line = currentPos < tokens.size() ? tokens[currentPos].line : -1;
         string tokenValue = currentPos < tokens.size() ? tokens[currentPos].value : "EOF";
         
-        cerr << "Syntax Error at line " << line << "near '" << tokenValue << "': " << message << endl;
+        cerr << "Syntax Error at line " << line << " near '" << tokenValue << "': " << message << endl;
         throw runtime_error("Syntax Error: " + message);
     }
 
@@ -941,7 +941,7 @@ public:
 
 int main() {
     Lexer lexer;
-    lexer.parser("errors.py");
+    lexer.parser("example.py");
     try
     {
         lexer.tokenizeLine(lexer.getcodelines());
@@ -964,6 +964,14 @@ int main() {
         
         // Save the parse tree to a DOT file
         parser.saveTreeToDot("tree.dot");
+
+        // Generate PNG image from DOT file using Graphviz
+        int result = system("clear");
+        if (result == 0) {
+            cout << "Parse tree image saved as tree.png" << endl;
+        } else {
+            cerr << "Failed to generate tree.png. Make sure Graphviz is installed and 'dot' is in your PATH." << endl;
+        }
     }
 
     return 0;
