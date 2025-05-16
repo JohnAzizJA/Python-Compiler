@@ -118,7 +118,7 @@ class Lexer {
                     continue;
                 }
                 
-                if (CurrentScope == "global" && indentation > 0) {
+                if (CurrentScope == "global" && indentation > 0 && !expectingIndentedBlock) {
                     cerr << "Error: Indentation error on line " << lineNumber << endl;
                     tokens.push_back({ERROR, "IndentationError", lineNumber});
                     continue;
@@ -172,6 +172,7 @@ class Lexer {
             regex formattedStringRegex(R"([fF]\".*?\"|[fF]\'.*?\')");
             regex stringLiteralRegex("\".*?\"|'.*?'");
             regex functionDefRegex("^\\s*def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("); 
+            regex classDefRegex("^\\s*class\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
             regex listRegex("\\[([^\\]]*)\\]");
             regex tupleRegex("\\(([^\\)]*)\\)");
         
@@ -357,6 +358,18 @@ class Lexer {
                 CurrentScope = functionName; // Update the current scope
                 
                 // Set flag to expect an indented block after function definition
+                expectingIndentedBlock = true;
+            }
+
+            if (regex_search(code, match, classDefRegex)) {
+                string className = match[1];
+                addToSymbolTable(className, "class", CurrentScope);
+
+                // Push the new class scope onto the stack
+                scopeStack.push_back(className);
+                CurrentScope = className; // Update the current scope
+                
+                // Set flag to expect an indented block after class definition
                 expectingIndentedBlock = true;
             }
         }

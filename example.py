@@ -1,3 +1,11 @@
+class Car:
+
+    def __init__(self, name):
+        self.name = name
+
+    def display(self):
+        print(f"name: {self.name}")
+
 def add(x, y):
     result = x + y
     print("The sum is:", result)
@@ -11,14 +19,6 @@ if z > 10:
 else:
     print("z is not greater than 10")
     z += 1
-
-class Car:
-
-    def __init__(self, name):
-        self.name = name
-
-    def display(self):
-        print(f"name: {self.name}")
         
 def main():
     car1 = Car("Honda")
