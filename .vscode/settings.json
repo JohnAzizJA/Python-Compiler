@@ -5,9 +5,6 @@
         "*.dbclient-js": "javascript",
         "xstring": "cpp",
         "regex": "cpp",
-<<<<<<< HEAD
-        "vector": "cpp"
-=======
         "vector": "cpp",
         "iostream": "cpp",
         "xhash": "cpp",
