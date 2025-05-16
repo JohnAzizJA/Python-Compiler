@@ -165,7 +165,7 @@ class Lexer {
             // Regular expressions for different token types
             regex keywordRegex("[a-zA-Z_][a-zA-Z0-9_]*");
             regex numberRegex("\\b(0[xX][0-9a-fA-F]+|\\d+(\\.\\d+)?([eE][+-]?\\d+)?)\\b");
-            regex operatorRegex("(==|!=|<=|>=|[+\\-*/%=<>!&|^~])");
+            regex operatorRegex("(==|!=|<=|>=|\\+=|-=|\\*=|/=|%=|//=|[+\\-*/%=<>!&|^~])");
             regex delimiterRegex("[(){}\\[\\],.:;]");
             regex formattedStringRegex(R"([fF]\".*?\"|[fF]\'.*?\')");
             regex stringLiteralRegex("\".*?\"|'.*?'");
