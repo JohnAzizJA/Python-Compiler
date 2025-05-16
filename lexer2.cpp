@@ -34,25 +34,76 @@ class Lexer {
         }
 
         void addToSymbolTable(const string& name, const string& type, const string& scope) {
+            // Special handling for function parameters and class methods
+            if (name == "self" || (scope.find("__init__") != string::npos && (name == "name" || name == "self"))) {
+                int newID = symbol_table.size() + 1;
+                symbol_table.push_back({newID, name, type, scope});
+                return;
+            }
+
+            // Check if it's a function declaration
+            if (type == "function") {
+                for (auto& id : symbol_table) {
+                    if (id.name == name && id.type == "function") {
+                        return; // Function already declared
+                    }
+                }
+                int newID = symbol_table.size() + 1;
+                symbol_table.push_back({newID, name, type, "global"});
+                return;
+            }
+
+            // For all other identifiers (variables)
+            bool found = false;
+            
+            // First check if variable exists anywhere in the symbol table
             for (auto& id : symbol_table) {
-                // Check if the variable already exists in the same scope
-                if (id.name == name && id.Scope == scope) {
-                    id.type = type; // Update the type
-                    return;         // Exit after updating
+                if (id.name == name) {
+                    found = true;
+                    // If found in any scope, update it to be global with the new type
+                    id.Scope = "global";
+                    if (type != "unknown") {
+                        id.type = type;
+                    }
+                    break;
                 }
             }
-        
-            // If the variable doesn't exist, add it as a new entry
-            int newID = symbol_table.size() + 1;
-            symbol_table.push_back({newID, name, type, scope});
+
+            // If not found anywhere, add as new entry in appropriate scope
+            if (!found) {
+                int newID = symbol_table.size() + 1;
+                // Always add variables to global scope except function parameters
+                if (scope.find("if") != string::npos || 
+                    scope.find("else") != string::npos || 
+                    scope.find("while") != string::npos || 
+                    scope.find("for") != string::npos || 
+                    scope == "global") {
+                    symbol_table.push_back({newID, name, type, "global"});
+                } else {
+                    // For function parameters and local variables
+                    symbol_table.push_back({newID, name, type, scope});
+                }
+            }
         }
+        
+
 
         string getVariableType(const string& name, const string& scope) {
+            // First check in current scope
             for (const auto& id : symbol_table) {
                 if (id.name == name && id.Scope == scope) {
                     return id.type;
                 }
             }
+
+            // Then check in global scope
+            for (const auto& id : symbol_table) {
+                if (id.name == name && id.Scope == "global") {
+                    return id.type;
+                }
+            }
+
+            // If not found in any relevant scope
             return "unknown";
         }
 
