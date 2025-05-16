@@ -1,25 +1,22 @@
-# Python Simplified Grammar (No raise or try, tuples included)
+# Python Simplified Grammar (Updated to match parser.cpp implementation)
 
-program: (stmt NEWLINE)* ENDMARKER
+program: statement*
 
 # === STATEMENTS ===
 
-stmt: simple_stmt | compound_stmt
-
-simple_stmt: small_stmt (';' small_stmt)* [';']
-small_stmt: expr_stmt
-          | flow_stmt
-          | pass_stmt
-          | break_stmt
-          | continue_stmt
-          | import_stmt
-          | function_call_stmt
-
-compound_stmt: if_stmt
-             | while_stmt
-             | for_stmt
-             | funcdef
-             | class_def
+statement: if_stmt
+         | while_stmt
+         | for_stmt
+         | funcdef
+         | class_def
+         | return_stmt
+         | pass_stmt
+         | break_stmt
+         | continue_stmt
+         | import_stmt
+         | assignment
+         | function_call_stmt
+         | expression_stmt
 
 # === SIMPLE STATEMENTS ===
 
@@ -33,42 +30,46 @@ import_stmt: 'import' dotted_name ('as' NAME)? (',' dotted_name ('as' NAME)?)*
 
 dotted_name: NAME ('.' NAME)*
 
-expr_stmt: identifier_list assign_op expression_list
-identifier_list: NAME (',' NAME)*
+assignment: identifier_list assign_op (expression_list | test)
+identifier_list: (NAME | attribute_access) (',' NAME)*
 expression_list: test (',' test)*
 
 assign_op: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '//='
 
-function_call_stmt: NAME '(' [arglist] ')' | dotted_name '(' [arglist] ')'
-arglist: test (',' test)* [',']
+function_call_stmt: (NAME | dotted_name) '(' [arguments] ')'
+arguments: test (',' test)* [',']
+
+expression_stmt: test
 
 # === COMPOUND STATEMENTS ===
 
 if_stmt: 'if' test ':' suite
-          ('elif' test ':' suite)*
-          ['else' ':' suite]
+         ('elif' test ':' suite)*
+         ['else' ':' suite]
 
 while_stmt: 'while' test ':' suite
 
 for_stmt: 'for' NAME 'in' test ':' suite
 
-funcdef: 'def' NAME parameters ':' suite
-parameters: '(' [typedargslist] ')'
-typedargslist: NAME (',' NAME)*
+funcdef: 'def' NAME '(' [parameters] ')' ':' suite
+parameters: NAME (',' NAME)*
 
 class_def: 'class' NAME ['(' NAME ')'] ':' suite
 
-suite: simple_stmt
-     | NEWLINE INDENT stmt+ DEDENT
+suite: statement
+     | NEWLINE INDENT statement+ DEDENT
 
 # === EXPRESSIONS ===
 
-test: or_test
+test: ternary_op
+
+ternary_op: or_test ['if' or_test 'else' test]
+
 or_test: and_test ('or' and_test)*
 and_test: not_test ('and' not_test)*
 not_test: 'not' not_test | comparison
 
-comparison: arith_expr (comp_op arith_expr)*
+comparison: arith_expr [comp_op arith_expr]
 comp_op: '<' | '>' | '==' | '>=' | '<=' | '!='
 
 arith_expr: term (('+' | '-') term)*
@@ -76,23 +77,24 @@ term: factor (('*' | '/' | '//') factor)*
 
 factor: ('+' | '-' | '~') factor
       | atom_expr
-      | atom
 
 atom_expr: atom trailer*
-trailer: '(' [arglist] ')'
+trailer: '(' [arguments] ')'
+       | '.' NAME
 
 # === ATOMS ===
 
-atom: '(' [testlist] ')'            
-    | '[' [testlist] ']'            
-    | '{' [dict_entries] '}'        
+atom: '(' [test (',' test)*] ')'  # Tuple or parenthesized expression
+    | '[' [test (',' test)*] ']'  # List
+    | '{' [key_value_pair (',' key_value_pair)*] '}'  # Dict
     | NAME
     | NUMBER
     | STRING
     | 'None' | 'True' | 'False'
 
-testlist: test (',' test)* [',']
-dict_entries: (test ':' test) (',' test ':' test)* [',']
+key_value_pair: test ':' test
+
+attribute_access: atom_expr '.' NAME
 
 # === LITERALS ===
 
