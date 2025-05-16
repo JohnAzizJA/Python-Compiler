@@ -129,16 +129,12 @@ private:
     // Grammar rules implementation
     shared_ptr<ParseTreeNode> parseProgram() {
         auto node = make_shared<ParseTreeNode>("Program");
-        
         while (currentPos < tokens.size()) {
-            try {
-                node->addChild(parseStatement());
-            } catch (const runtime_error& e) {
-                cerr << "Syntax Error " << e.what() << endl;
-                exit(EXIT_FAILURE);
-            }
+            // Skip NEWLINE tokens between statements
+            while (match(NEWLINE)) consume();
+            if (currentPos >= tokens.size()) break;
+            node->addChild(parseStatement());
         }
-        
         return node;
     }
 
@@ -155,6 +151,7 @@ private:
     }
 
     shared_ptr<ParseTreeNode> parseStatement() {
+        while (match(NEWLINE)) consume();
         if (match(KEYWORD, "if")) {
             return parseIfStatement();
         } else if (match(KEYWORD, "while")) {
@@ -213,99 +210,99 @@ private:
         }
     }
 
+    shared_ptr<ParseTreeNode> parseBlockOrSimpleSuite() {
+        auto node = make_shared<ParseTreeNode>("Suite");
+        if (match(NEWLINE)) {
+            consume(); // consume NEWLINE
+            if (match(INDENT)) {
+                consume(); // consume INDENT
+                while (!match(DEDENT) && currentPos < tokens.size()) {
+                    // Skip extra NEWLINEs inside block
+                    while (match(NEWLINE)) consume();
+                    if (match(DEDENT) || currentPos >= tokens.size()) break;
+                    node->addChild(parseStatement());
+                }
+                if (match(DEDENT)) {
+                    consume(); // consume DEDENT
+                } else if (currentPos >= tokens.size()) {
+                    // Allow EOF as valid end of block
+                } else {
+                    syntaxError("Expected DEDENT at end of block");
+                }
+            } else {
+                syntaxError("Expected INDENT after NEWLINE for block suite");
+            }
+        } else if (
+            // Accept a simple statement (start of a statement)
+            match(IDENTIFIER) || match(KEYWORD, "return") || match(KEYWORD, "pass") ||
+            match(KEYWORD, "break") || match(KEYWORD, "continue") || match(KEYWORD, "import") ||
+            match(KEYWORD, "from") || match(KEYWORD, "if") || match(KEYWORD, "while") ||
+            match(KEYWORD, "for") || match(KEYWORD, "def") || match(KEYWORD, "class")
+        ) {
+            node->addChild(parseStatement());
+        } else {
+            syntaxError("Expected NEWLINE+INDENT for block or a simple statement after ':'");
+        }
+        return node;
+    }
+
     shared_ptr<ParseTreeNode> parseIfStatement() {
         auto node = make_shared<ParseTreeNode>("IfStatement");
-        
-        // Parse 'if' keyword
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        
-        // Parse condition
         node->addChild(parseTest());
-        
-        // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after if condition");
-        
-        // Parse then-block
-        node->addChild(parseSuite());
-        
+        node->addChild(parseBlockOrSimpleSuite());
+
         // Parse optional elif blocks
         while (match(KEYWORD, "elif")) {
             auto elifNode = make_shared<ParseTreeNode>("ElifClause");
             elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             elifNode->addChild(parseTest());
             expect(DELIMITER, ":", "Expected ':' after elif condition");
-            elifNode->addChild(parseSuite());
+            elifNode->addChild(parseBlockOrSimpleSuite());
             node->addChild(elifNode);
         }
-        
+
         // Parse optional else-block
         if (match(KEYWORD, "else")) {
             auto elseNode = make_shared<ParseTreeNode>("ElseClause");
             elseNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             expect(DELIMITER, ":", "Expected ':' after 'else'");
-            elseNode->addChild(parseSuite());
+            elseNode->addChild(parseBlockOrSimpleSuite());
             node->addChild(elseNode);
         }
-        
+
         return node;
     }
 
     shared_ptr<ParseTreeNode> parseWhileStatement() {
         auto node = make_shared<ParseTreeNode>("WhileStatement");
-        
-        // Parse 'while' keyword
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        
-        // Parse condition
         node->addChild(parseTest());
-        
-        // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after while condition");
-        
-        // Parse body
-        node->addChild(parseSuite());
-        
+        node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
 
     shared_ptr<ParseTreeNode> parseForStatement() {
         auto node = make_shared<ParseTreeNode>("ForStatement");
-        
-        // Parse 'for' keyword
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        
-        // Parse target variable
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected identifier after 'for'").value));
-        
-        // Parse 'in' keyword
         expect(KEYWORD, "in", "Expected 'in' after for variable");
         node->addChild(make_shared<ParseTreeNode>("Keyword", "in"));
-        
-        // Parse iterable expression
         node->addChild(parseTest());
-        
-        // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after for statement");
-        
-        // Parse body
-        node->addChild(parseSuite());
-        
+        node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
 
     shared_ptr<ParseTreeNode> parseFunctionDef() {
         auto node = make_shared<ParseTreeNode>("FunctionDefinition");
-        
-        // Parse 'def' keyword
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        
-        // Parse function name
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected function name after 'def'").value));
-        
-        // Parse parameter list
         expect(DELIMITER, "(", "Expected '(' after function name");
         auto paramsNode = make_shared<ParseTreeNode>("Parameters");
-        
+
         if (!match(DELIMITER, ")")) {
             do {
                 paramsNode->addChild(make_shared<ParseTreeNode>("Parameter", expect(IDENTIFIER, "Expected parameter name").value));
@@ -317,41 +314,25 @@ private:
                 }
             } while (true);
         }
-        
+
         node->addChild(paramsNode);
         expect(DELIMITER, ")", "Expected ')' after parameters");
-        
-        // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after function declaration");
-        
-        // Parse function body
-        node->addChild(parseSuite());
-        
+        node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
 
     shared_ptr<ParseTreeNode> parseClassDef() {
         auto node = make_shared<ParseTreeNode>("ClassDefinition");
-        
-        // Parse 'class' keyword
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        
-        // Parse class name
         node->addChild(make_shared<ParseTreeNode>("Identifier", expect(IDENTIFIER, "Expected class name after 'class'").value));
-        
-        // Parse optional parent class
         if (match(DELIMITER, "(")) {
             consume(); // consume '('
             node->addChild(make_shared<ParseTreeNode>("Parent", expect(IDENTIFIER, "Expected parent class name").value));
             expect(DELIMITER, ")", "Expected ')' after parent class name");
         }
-        
-        // Parse ':'
         expect(DELIMITER, ":", "Expected ':' after class declaration");
-        
-        // Parse class body
-        node->addChild(parseSuite());
-        
+        node->addChild(parseBlockOrSimpleSuite());
         return node;
     }
 
@@ -808,10 +789,12 @@ private:
             return make_shared<ParseTreeNode>("Literal", consume().value);
         } else if (match(KEYWORD, "None") || match(KEYWORD, "True") || match(KEYWORD, "False")) {
             return make_shared<ParseTreeNode>("Keyword", consume().value);
+        } else if (currentPos >= tokens.size()) {
+            syntaxError("Unexpected end of input (EOF) while parsing expression");
         } else {
             syntaxError("Expected expression");
-            return nullptr; // This will never be reached due to the exception
         }
+        return nullptr;
     }
 
 public:
