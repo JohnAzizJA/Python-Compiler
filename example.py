@@ -30,11 +30,11 @@ def main():
     car1.display()
     print(car1.name.upper())
 
-    # x = 1 if True else 2
-    # print("yes" if True else "no")
+    x = 1 if True else 2
+    print("yes" if True else "no")
     # print("yes") if False else print("no") fookin hell tommy
-    # y = 10 < (x if True else y)
-    # my_list = [1, 2, 3 if False else 4]
+    y = 10 < (x if True else y)
+    my_list = [1, 2, 3 if False else 4]
 
 if __name__ == "__main__":
     main()
