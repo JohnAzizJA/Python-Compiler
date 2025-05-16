@@ -82,7 +82,7 @@ private:
         int line = currentPos < tokens.size() ? tokens[currentPos].line : -1;
         string tokenValue = currentPos < tokens.size() ? tokens[currentPos].value : "EOF";
         
-        cerr << "Syntax Error at line " << line << " near '" << tokenValue << "': " << message << endl;
+        cerr << "Syntax Error at line " << line << "near '" << tokenValue << "': " << message << endl;
         throw runtime_error("Syntax Error: " + message);
     }
 
@@ -497,15 +497,19 @@ private:
         node->addChild(make_shared<ParseTreeNode>("AssignOp", op));
         
         // Parse expression list (value)
-        auto valueNode = make_shared<ParseTreeNode>("ExpressionList");
-        valueNode->addChild(parseTest());
-        
-        while (match(DELIMITER, ",")) {
-            consume(); // consume ','
-            valueNode->addChild(parseTest());
+        // If you want to support tuple unpacking, keep ExpressionList only if there are commas:
+        auto firstExpr = parseTest();
+        if (match(DELIMITER, ",")) {
+            auto valueNode = make_shared<ParseTreeNode>("ExpressionList");
+            valueNode->addChild(firstExpr);
+            while (match(DELIMITER, ",")) {
+                consume(); // consume ','
+                valueNode->addChild(parseTest());
+            }
+            node->addChild(valueNode);
+        } else {
+            node->addChild(firstExpr);
         }
-        
-        node->addChild(valueNode);
         
         return node;
     }
@@ -651,16 +655,13 @@ private:
     }
 
     shared_ptr<ParseTreeNode> parseArithExpr() {
-        auto node = parseTerm();
-        
+        auto exprList = make_shared<ParseTreeNode>("ExpressionList");
+        exprList->addChild(parseTerm());
         while (match(OPERATOR, "+") || match(OPERATOR, "-")) {
-            auto opNode = make_shared<ParseTreeNode>("BinaryOp", consume().value);
-            opNode->addChild(node);
-            opNode->addChild(parseTerm());
-            node = opNode;
+            exprList->addChild(make_shared<ParseTreeNode>("BinaryOp", consume().value));
+            exprList->addChild(parseTerm());
         }
-        
-        return node;
+        return exprList->children.size() == 1 ? exprList->children[0] : exprList;
     }
 
     shared_ptr<ParseTreeNode> parseTerm() {
