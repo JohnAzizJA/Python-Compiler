@@ -255,7 +255,7 @@ class Lexer {
                     cerr << "Error: Unterminated string literal on line " << lineNumber << endl;
                     printTables();
 
-                    exit(EXIT_FAILURE);
+                    throw runtime_error("Unterminated string literal");
                 }
 
 
@@ -263,7 +263,7 @@ class Lexer {
                     string strLiteral = match.str();
                     cerr << "Error: Invalid attribute name with space on line " << lineNumber << endl;
                     printTables();
-                    exit(EXIT_FAILURE);
+                    throw runtime_error("Invalid attribute name with space");
                 }
         
                 if (regex_search(subCode, match, stringLiteralRegex) && match.position() == 0) {
@@ -382,7 +382,7 @@ class Lexer {
                     string badNum = match.str();
                     cerr << "Error: Malformed number literal '" << badNum << "' on line " << lineNumber << endl;
                     printTables();
-                    exit(EXIT_FAILURE);
+                    throw runtime_error("Malformed number literal");
                 }
         
                 if (regex_search(subCode, match, numberRegex) && match.position() == 0) {
@@ -395,8 +395,7 @@ class Lexer {
                 cerr << "Error: Invalid character '" << code[i] << "' on line " << lineNumber << endl;
                 tokens.push_back({ERROR, string(1, code[i]), lineNumber});
                 printTables();
-
-                exit(EXIT_FAILURE);
+                throw runtime_error("Invalid character");
             }
         
             // Match function definitions

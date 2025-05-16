@@ -903,8 +903,17 @@ public:
 
 int main() {
     Lexer lexer;
-    lexer.parser("example.py");
+    lexer.parser("errors.py");
+    try
+    {
     lexer.tokenizeLine(lexer.getcodelines());
+    }
+    catch(const std::exception& e)
+    {
+        return 0;
+    }
+    
+
     lexer.printTables();
     vector<Token> tokens = lexer.getTokens();
 
