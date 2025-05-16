@@ -176,10 +176,26 @@ private:
         } else if (match(KEYWORD, "import") || match(KEYWORD, "from")) {
             return parseImportStatement();
         } else if (match(IDENTIFIER)) {
-            // Look ahead to see if this is an assignment
+            // Look ahead to see if this is an assignment or attribute assignment
             size_t savedPos = currentPos;
             consume(); // consume identifier
             
+            // Check for attribute access followed by assignment
+            if (match(DELIMITER, ".")) {
+                consume(); // consume '.'
+                if (match(IDENTIFIER)) {
+                    consume(); // consume attribute name
+                    if (match(OPERATOR, "=") || match(OPERATOR, "+=") || match(OPERATOR, "-=") || 
+                        match(OPERATOR, "*=") || match(OPERATOR, "/=") || match(OPERATOR, "%=") || 
+                        match(OPERATOR, "//=")) {
+                        currentPos = savedPos; // rewind
+                        return parseAssignment();
+                    }
+                }
+                currentPos = savedPos; // rewind if not an attribute assignment
+            }
+            
+            // Check for direct assignment
             if (match(OPERATOR, "=") || match(OPERATOR, "+=") || match(OPERATOR, "-=") || 
                 match(OPERATOR, "*=") || match(OPERATOR, "/=") || match(OPERATOR, "%=") || 
                 match(OPERATOR, "//=")) {
@@ -206,7 +222,10 @@ private:
         // Parse condition
         node->addChild(parseTest());
         
-        // Parse then-block (parseSuite handles ':')
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after if condition");
+        
+        // Parse then-block
         node->addChild(parseSuite());
         
         // Parse optional elif blocks
@@ -214,6 +233,7 @@ private:
             auto elifNode = make_shared<ParseTreeNode>("ElifClause");
             elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             elifNode->addChild(parseTest());
+            expect(DELIMITER, ":", "Expected ':' after elif condition");
             elifNode->addChild(parseSuite());
             node->addChild(elifNode);
         }
@@ -222,6 +242,7 @@ private:
         if (match(KEYWORD, "else")) {
             auto elseNode = make_shared<ParseTreeNode>("ElseClause");
             elseNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
+            expect(DELIMITER, ":", "Expected ':' after 'else'");
             elseNode->addChild(parseSuite());
             node->addChild(elseNode);
         }
@@ -238,7 +259,10 @@ private:
         // Parse condition
         node->addChild(parseTest());
         
-        // Parse body (parseSuite handles ':')
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after while condition");
+        
+        // Parse body
         node->addChild(parseSuite());
         
         return node;
@@ -260,7 +284,10 @@ private:
         // Parse iterable expression
         node->addChild(parseTest());
         
-        // Parse body (parseSuite handles ':')
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after for statement");
+        
+        // Parse body
         node->addChild(parseSuite());
         
         return node;
@@ -294,7 +321,10 @@ private:
         node->addChild(paramsNode);
         expect(DELIMITER, ")", "Expected ')' after parameters");
         
-        // Parse function body (parseSuite handles ':')
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after function declaration");
+        
+        // Parse function body
         node->addChild(parseSuite());
         
         return node;
@@ -316,7 +346,10 @@ private:
             expect(DELIMITER, ")", "Expected ')' after parent class name");
         }
         
-        // Parse class body (parseSuite handles ':')
+        // Parse ':'
+        expect(DELIMITER, ":", "Expected ':' after class declaration");
+        
+        // Parse class body
         node->addChild(parseSuite());
         
         return node;
@@ -517,13 +550,9 @@ private:
         return node;
     }
 
-    // Adjusted parseSuite to handle INDENT/DEDENT and block statements
     shared_ptr<ParseTreeNode> parseSuite() {
         auto node = make_shared<ParseTreeNode>("Suite");
-
-        // Parse ':' (handled here, so remove expect(':', ...) from callers)
-        expect(DELIMITER, ":", "Expected ':' before suite");
-
+        
         // Handle INDENT for block
         if (match(INDENT)) {
             consume(); // consume INDENT
@@ -544,7 +573,7 @@ private:
             // Simple statement after ':'
             node->addChild(parseStatement());
         }
-
+        
         return node;
     }
 
