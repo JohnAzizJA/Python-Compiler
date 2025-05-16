@@ -7,7 +7,11 @@ class Car:
         print(f"name: {self.name}")
 
 list = [1, 2, 3, 4, 5]
+l = list[0]
 tuple = (1, 2, 3, 4, 5)
+t = tuple[1]
+dict = {"key1": "value1", "key2": "value2"}
+d = dict["key1"]
 
 def add(x, y):
     result = x + y
