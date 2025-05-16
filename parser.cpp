@@ -246,10 +246,28 @@ private:
         return node;
     }
 
-    shared_ptr<ParseTreeNode> parseIfStatement() {
+        shared_ptr<ParseTreeNode> parseIfStatement() {
         auto node = make_shared<ParseTreeNode>("IfStatement");
-        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-        node->addChild(parseTest());
+        node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value)); // 'if'
+        
+        // Parse the condition
+        auto condition = parseTest();
+        
+        // If the condition is a comparison or binary operation, flatten it
+        if (condition->type == "ComparisonOp" || condition->type == "BinaryOp") {
+            // Add left operand directly to if statement
+            node->addChild(condition->children[0]);
+            
+            // Add operator directly to if statement
+            node->addChild(make_shared<ParseTreeNode>(condition->type, condition->value));
+            
+            // Add right operand directly to if statement
+            node->addChild(condition->children[1]);
+        } else {
+            // Just add the condition as is
+            node->addChild(condition);
+        }
+        
         expect(DELIMITER, ":", "Expected ':' after if condition");
         node->addChild(parseBlockOrSimpleSuite());
 
@@ -257,7 +275,25 @@ private:
         while (match(KEYWORD, "elif")) {
             auto elifNode = make_shared<ParseTreeNode>("ElifClause");
             elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
-            elifNode->addChild(parseTest());
+            
+            // Parse the elif condition
+            auto elifCondition = parseTest();
+            
+            // If the condition is a comparison or binary operation, flatten it
+            if (elifCondition->type == "ComparisonOp" || elifCondition->type == "BinaryOp") {
+                // Add left operand directly to elif clause
+                elifNode->addChild(elifCondition->children[0]);
+                
+                // Add operator directly to elif clause
+                elifNode->addChild(make_shared<ParseTreeNode>(elifCondition->type, elifCondition->value));
+                
+                // Add right operand directly to elif clause
+                elifNode->addChild(elifCondition->children[1]);
+            } else {
+                // Just add the condition as is
+                elifNode->addChild(elifCondition);
+            }
+            
             expect(DELIMITER, ":", "Expected ':' after elif condition");
             elifNode->addChild(parseBlockOrSimpleSuite());
             node->addChild(elifNode);
