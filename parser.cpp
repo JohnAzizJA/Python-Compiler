@@ -246,27 +246,12 @@ private:
         return node;
     }
 
-        shared_ptr<ParseTreeNode> parseIfStatement() {
+    shared_ptr<ParseTreeNode> parseIfStatement() {
         auto node = make_shared<ParseTreeNode>("IfStatement");
         node->addChild(make_shared<ParseTreeNode>("Keyword", consume().value)); // 'if'
         
-        // Parse the condition
-        auto condition = parseTest();
-        
-        // If the condition is a comparison or binary operation, flatten it
-        if (condition->type == "ComparisonOp" || condition->type == "BinaryOp") {
-            // Add left operand directly to if statement
-            node->addChild(condition->children[0]);
-            
-            // Add operator directly to if statement
-            node->addChild(make_shared<ParseTreeNode>(condition->type, condition->value));
-            
-            // Add right operand directly to if statement
-            node->addChild(condition->children[1]);
-        } else {
-            // Just add the condition as is
-            node->addChild(condition);
-        }
+        // Parse the condition - no need to flatten it anymore
+        node->addChild(parseTest());
         
         expect(DELIMITER, ":", "Expected ':' after if condition");
         node->addChild(parseBlockOrSimpleSuite());
@@ -276,23 +261,8 @@ private:
             auto elifNode = make_shared<ParseTreeNode>("ElifClause");
             elifNode->addChild(make_shared<ParseTreeNode>("Keyword", consume().value));
             
-            // Parse the elif condition
-            auto elifCondition = parseTest();
-            
-            // If the condition is a comparison or binary operation, flatten it
-            if (elifCondition->type == "ComparisonOp" || elifCondition->type == "BinaryOp") {
-                // Add left operand directly to elif clause
-                elifNode->addChild(elifCondition->children[0]);
-                
-                // Add operator directly to elif clause
-                elifNode->addChild(make_shared<ParseTreeNode>(elifCondition->type, elifCondition->value));
-                
-                // Add right operand directly to elif clause
-                elifNode->addChild(elifCondition->children[1]);
-            } else {
-                // Just add the condition as is
-                elifNode->addChild(elifCondition);
-            }
+            // Parse the elif condition - no need to flatten it anymore
+            elifNode->addChild(parseTest());
             
             expect(DELIMITER, ":", "Expected ':' after elif condition");
             elifNode->addChild(parseBlockOrSimpleSuite());
@@ -310,6 +280,7 @@ private:
 
         return node;
     }
+
 
     shared_ptr<ParseTreeNode> parseWhileStatement() {
         auto node = make_shared<ParseTreeNode>("WhileStatement");
@@ -696,17 +667,29 @@ private:
     }
 
     shared_ptr<ParseTreeNode> parseComparison() {
-        auto node = parseArithExpr();
+        auto leftExpr = parseArithExpr();
         
-        while (match(OPERATOR, "<") || match(OPERATOR, ">") || match(OPERATOR, "==") || 
-               match(OPERATOR, ">=") || match(OPERATOR, "<=") || match(OPERATOR, "!=")) {
-            auto opNode = make_shared<ParseTreeNode>("ComparisonOp", consume().value);
-            opNode->addChild(node);
-            opNode->addChild(parseArithExpr());
-            node = opNode;
+        if (match(OPERATOR, "<") || match(OPERATOR, ">") || match(OPERATOR, "==") || 
+            match(OPERATOR, ">=") || match(OPERATOR, "<=") || match(OPERATOR, "!=")) {
+            
+            // Create a flattened comparison node
+            auto node = make_shared<ParseTreeNode>("Comparison");
+            
+            // Add left operand
+            node->addChild(leftExpr);
+            
+            // Add operator
+            Token op = consume();
+            node->addChild(make_shared<ParseTreeNode>("ComparisonOp", op.value));
+            
+            // Add right operand
+            auto rightExpr = parseArithExpr();
+            node->addChild(rightExpr);
+            
+            return node;
         }
         
-        return node;
+        return leftExpr;
     }
 
     shared_ptr<ParseTreeNode> parseArithExpr() {
