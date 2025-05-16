@@ -158,6 +158,8 @@ class Lexer {
                         tokenizeStatement(segment, lineNumber);
                     }
                 }
+                // Emit NEWLINE token after processing the line
+                tokens.push_back({NEWLINE, "\\n", lineNumber});
             }
         }
         

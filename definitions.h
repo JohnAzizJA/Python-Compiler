@@ -6,7 +6,7 @@
 using namespace std;
 
 enum TokenType {
-    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER, ERROR, INDENT, DEDENT
+    IDENTIFIER, KEYWORD, OPERATOR, LITERAL, DELIMITER, ERROR, INDENT, DEDENT, NEWLINE
 };
 
 struct Token {
@@ -32,6 +32,7 @@ inline std::string tokenTypeToString(TokenType type) {
         case ERROR: return "ERROR";
         case INDENT: return "INDENT";
         case DEDENT: return "DEDENT";
+        case NEWLINE: return "NEWLINE";
         default: return "UNKNOWN"s;
     }
 }

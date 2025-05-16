@@ -554,9 +554,13 @@ private:
         auto node = make_shared<ParseTreeNode>("Suite");
         
         // Handle INDENT for block
-        if (match(INDENT)) {
+        if ( match(NEWLINE)) {
             consume(); // consume INDENT
-
+            if (match(INDENT)) {
+                consume(); // consume NEWLINE
+            } else {
+                syntaxError("Expected INDENT after newline");
+            }
             // Parse multiple statements until DEDENT
             while (!match(DEDENT) && currentPos < tokens.size()) {
                 node->addChild(parseStatement());
